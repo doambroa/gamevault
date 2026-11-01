@@ -1,0 +1,199 @@
+/* ── Overlay ── */
+.jp-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0);
+  z-index: 400;
+  pointer-events: none;
+  transition: background 0.3s;
+}
+.jp-overlay-visible {
+  background: rgba(0,0,0,0.45);
+  pointer-events: all;
+  backdrop-filter: blur(2px);
+}
+
+/* ── Panel ── */
+.jp-panel {
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
+  width: 400px;
+  background: var(--bg-1);
+  border-left: 1px solid var(--border);
+  z-index: 401;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: -8px 0 40px rgba(0,0,0,0.4);
+}
+.jp-panel-open {
+  transform: translateX(0);
+}
+
+/* ── Header ── */
+.jp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--bg-0);
+}
+.jp-close {
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-3); border: none; border-radius: var(--r);
+  color: var(--text-2); transition: all 0.15s;
+}
+.jp-close:hover { background: var(--bg-4); color: var(--text-0); }
+
+.jp-header-actions { display: flex; gap: 8px; }
+.jp-action-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: var(--r);
+  background: var(--bg-3); border: 1px solid var(--border);
+  color: var(--text-1); font-size: 12px; font-weight: 500;
+  transition: all 0.15s;
+}
+.jp-action-btn:hover { background: var(--bg-4); color: var(--text-0); border-color: var(--accent); }
+
+/* ── Body ── */
+.jp-body {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 24px;
+}
+
+/* ── Gallery ── */
+.jp-gallery {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16/9;
+  background: var(--bg-3);
+  overflow: hidden;
+}
+.jp-main-img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.jp-gallery-btn {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 32px; height: 32px;
+  background: rgba(0,0,0,0.6); border: none; border-radius: 50%;
+  color: white; display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
+}
+.jp-gallery-btn:hover { background: rgba(230,57,70,0.8); }
+.jp-gallery-prev { left: 10px; }
+.jp-gallery-next { right: 10px; }
+.jp-gallery-dots {
+  position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 5px;
+}
+.jp-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: rgba(255,255,255,0.4); border: none;
+  transition: background 0.15s;
+}
+.jp-dot-active { background: white; }
+
+/* ── Title block ── */
+.jp-title-block { padding: 16px 18px 12px; }
+.jp-title {
+  font-family: var(--font-d);
+  font-size: 22px; font-weight: 700; line-height: 1.2;
+  color: var(--text-0); margin-bottom: 4px;
+}
+.jp-dev { font-size: 13px; color: var(--text-2); margin-bottom: 10px; }
+.jp-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* ── Platform card ── */
+.jp-platform-card {
+  display: flex; align-items: center; gap: 12px;
+  margin: 0 18px 14px;
+  padding: 12px 14px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+.jp-platform-icon {
+  width: 34px; height: 34px;
+  background: var(--bg-3); border-radius: var(--r);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-2); flex-shrink: 0;
+}
+.jp-platform-name { font-size: 13px; font-weight: 600; color: var(--text-0); }
+.jp-platform-marca { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+
+/* ── Data rows ── */
+.jp-data { padding: 0 18px; }
+.jp-section-title {
+  font-family: var(--font-d);
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--text-3); margin-bottom: 8px; margin-top: 4px;
+}
+.jp-row {
+  display: flex; align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.jp-row:last-child { border-bottom: none; }
+.jp-row-label {
+  display: flex; align-items: center; gap: 5px;
+  width: 110px; flex-shrink: 0;
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-3);
+}
+.jp-row-value { flex: 1; font-size: 13px; color: var(--text-1); }
+
+/* Clickable filter tag */
+.jp-filter-tag {
+  cursor: pointer;
+  transition: opacity 0.15s;
+  display: inline-flex;
+}
+.jp-filter-tag:hover { opacity: 0.75; }
+.jp-filter-tag:hover .badge { border-color: var(--accent); }
+
+/* ── Comments ── */
+.jp-comments { padding: 4px 18px 0; }
+.jp-comment-text {
+  font-size: 13px; color: var(--text-2);
+  line-height: 1.7;
+  background: var(--bg-2);
+  border-radius: var(--r);
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+}
+
+/* ── Thumbnail strip ── */
+.jp-thumbs {
+  display: flex; gap: 6px;
+  padding: 14px 18px 0;
+  overflow-x: auto;
+}
+.jp-thumb {
+  width: 64px; height: 44px;
+  object-fit: cover;
+  border-radius: var(--r-sm);
+  border: 2px solid var(--border);
+  cursor: pointer; flex-shrink: 0;
+  transition: border-color 0.15s;
+}
+.jp-thumb-active { border-color: var(--accent); }
+.jp-thumb:hover { border-color: rgba(230,57,70,0.5); }
+
+/* Botón pequeño "Actualizar" de las secciones Duración / Ventas */
+.jp-mini-btn {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 9px; border-radius: var(--r); font-size: 11px; font-weight: 500; cursor: pointer;
+  background: var(--bg-3); border: 1px solid var(--border); color: var(--text-2);
+  transition: background .15s;
+}
+.jp-mini-btn:hover:not(:disabled) { background: var(--bg-4); color: var(--text-1); }
+.jp-mini-btn:disabled { opacity: .6; cursor: default; }
+.jp-data + .jp-data { margin-top: 18px; }

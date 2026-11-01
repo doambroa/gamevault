@@ -1,0 +1,15 @@
+node_modules/
+build/
+dist/
+android/.tools/
+android/out/
+public/sql-wasm.*
+public/coleccion-inicial.json
+db/gamevault.db
+
+# claves y firma: nunca al repo
+.env
+.env.local
+src/core/keys.js
+android/*.jks
+android/*.keystore

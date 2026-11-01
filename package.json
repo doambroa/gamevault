@@ -1,0 +1,108 @@
+{
+  "name": "gamevault",
+  "version": "1.8.0",
+  "description": "GameVault — colección de videojuegos y consolas",
+  "author": {
+    "name": "Daniel"
+  },
+  "homepage": "./",
+  "scripts": {
+    "start": "node scripts/copy-web-assets.js && react-scripts start",
+    "build": "node scripts/copy-web-assets.js && react-scripts build",
+    "test": "node scripts/gen-keys.js && node --test tests/core.test.js tests/parser.test.js",
+    "electron-dev": "concurrently \"cross-env BROWSER=none npm start\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron-prod": "npm run build && electron .",
+    "pack-win": "npm run build && electron-builder --win --x64 --publish never",
+    "pack-android": "npm run build && node android/build-apk.js",
+    "pack-web": "npm run build && node scripts/build-web.js"
+  },
+  "dependencies": {
+    "sql.js": "^1.12.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "electron": "^29.1.0",
+    "electron-builder": "^24.13.3",
+    "fflate": "^0.8.2",
+    "lucide-react": "^0.383.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.22.0",
+    "react-scripts": "5.0.1",
+    "wait-on": "^7.2.0",
+    "xlsx": "^0.18.5"
+  },
+  "build": {
+    "appId": "com.gamevault.app",
+    "productName": "GameVault",
+    "asar": true,
+    "directories": {
+      "output": "dist",
+      "buildResources": "buildres"
+    },
+    "files": [
+      "build/**/*",
+      "electron/**/*",
+      "src/core/**/*",
+      "package.json",
+      "!build/sql-wasm.*",
+      "!**/*.map",
+      "!node_modules/sql.js/dist/sql-asm*",
+      "!node_modules/sql.js/dist/*debug*",
+      "!node_modules/sql.js/dist/*browser*",
+      "!node_modules/sql.js/*.md",
+      "!node_modules/sql.js/logo.svg"
+    ],
+    "extraResources": [
+      {
+        "from": "node_modules/sql.js/dist/sql-wasm.wasm",
+        "to": "sql-wasm.wasm"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "buildres/icon.ico",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "GameVault",
+      "installerIcon": "buildres/icon.ico",
+      "uninstallerIcon": "buildres/icon.ico",
+      "artifactName": "GameVault-Setup-${version}.${ext}",
+      "language": "3082"
+    },
+    "extraMetadata": {
+      "main": "electron/main.js"
+    },
+    "publish": []
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version"
+    ]
+  },
+  "main": "electron/main.js",
+  "eslintConfig": {
+    "extends": [
+      "react-app"
+    ]
+  }
+}

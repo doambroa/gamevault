@@ -1,0 +1,329 @@
+.ob-screen {
+  height: 100%;
+  overflow-y: auto;
+  background: var(--bg-0);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Welcome ── */
+.ob-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 60px 40px;
+  text-align: center;
+  gap: 16px;
+}
+
+.ob-logo {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.ob-logo-icon {
+  font-size: 48px;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.ob-logo-text {
+  font-family: var(--font-d);
+  font-size: 56px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-0);
+}
+
+.ob-tagline {
+  font-size: 16px;
+  color: var(--text-2);
+  margin-bottom: 40px;
+}
+
+.ob-cards {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 700px;
+}
+
+.ob-card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  padding: 32px 28px;
+  width: 280px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.ob-card:hover {
+  border-color: rgba(230,57,70,0.4);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+}
+
+.ob-card-primary {
+  border-color: rgba(230,57,70,0.3);
+  background: linear-gradient(135deg, var(--bg-2), rgba(230,57,70,0.06));
+}
+
+.ob-card-icon {
+  width: 56px; height: 56px;
+  background: var(--bg-3);
+  border-radius: var(--r-lg);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent);
+  margin-bottom: 16px;
+}
+
+.ob-card h3 {
+  font-family: var(--font-d);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-0);
+  margin-bottom: 8px;
+}
+
+.ob-card p {
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.6;
+}
+
+.ob-card-arrow {
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  color: var(--text-3);
+  transition: color 0.15s, transform 0.15s;
+}
+
+.ob-card:hover .ob-card-arrow {
+  color: var(--accent);
+  transform: translateX(4px);
+}
+
+/* ── Console selector header ── */
+.ob-select-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 32px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--bg-0);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.ob-select-title {
+  font-family: var(--font-d);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-0);
+  margin-bottom: 4px;
+}
+
+.ob-select-sub {
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.ob-finish-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--r-lg);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font-b);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.ob-finish-btn:hover:not(:disabled) {
+  background: var(--accent-dim);
+  box-shadow: 0 0 20px var(--accent-glow);
+}
+
+.ob-finish-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.ob-finish-empty {
+  background: var(--bg-3);
+  color: var(--text-2);
+}
+
+.ob-finish-empty:hover {
+  background: var(--bg-4) !important;
+  color: var(--text-1) !important;
+  box-shadow: none !important;
+}
+
+/* ── Brand filter ── */
+.ob-marcas {
+  display: flex;
+  gap: 8px;
+  padding: 16px 32px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.ob-marca-btn {
+  padding: 6px 18px;
+  border-radius: 20px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ob-marca-btn:hover { background: var(--bg-4); color: var(--text-0); }
+.ob-marca-btn.active {
+  background: var(--accent-glow);
+  border-color: rgba(230,57,70,0.4);
+  color: var(--accent);
+}
+
+/* ── Console grid ── */
+.ob-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+  padding: 0 32px 32px;
+}
+
+.ob-consola {
+  background: var(--bg-2);
+  border: 2px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.18s;
+  position: relative;
+}
+
+.ob-consola:hover {
+  border-color: rgba(230,57,70,0.35);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+.ob-consola-sel {
+  border-color: var(--accent) !important;
+  background: linear-gradient(135deg, var(--bg-2), rgba(230,57,70,0.06));
+}
+
+.ob-check {
+  position: absolute;
+  top: 8px; right: 8px;
+  width: 26px; height: 26px;
+  background: var(--accent);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: white;
+  z-index: 2;
+  animation: popIn 0.15s cubic-bezier(0.34,1.5,0.64,1);
+}
+
+@keyframes popIn {
+  from { transform: scale(0); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+.ob-consola-avatar {
+  width: 100%;
+  height: 110px;
+  background: var(--bg-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-d);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--text-3);
+  transition: color 0.18s;
+}
+
+.ob-consola:hover .ob-consola-avatar { color: var(--text-2); }
+.ob-consola-sel .ob-consola-avatar   { color: var(--accent); }
+
+.ob-consola-info {
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+}
+
+.ob-consola-nombre {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-0);
+  margin-bottom: 2px;
+}
+
+.ob-consola-marca {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-bottom: 6px;
+}
+
+.ob-tipo {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ob-tipo-sobremesa { background: var(--accent-glow); color: var(--accent); border: 1px solid rgba(230,57,70,.3); }
+.ob-tipo-portatil  { background: rgba(72,202,228,.1);  color: var(--cyan);   border: 1px solid rgba(72,202,228,.25); }
+.ob-tipo-hibrida   { background: rgba(46,204,113,.1);  color: var(--green);  border: 1px solid rgba(46,204,113,.3); }
+.ob-tipo-pc        { background: rgba(244,162,97,.1);  color: var(--gold);   border: 1px solid rgba(244,162,97,.3); }
+
+/* Consolas que ya están en la colección (no se pueden volver a añadir) */
+.ob-consola-tiene { opacity: .45; cursor: default; }
+.ob-consola-tiene:hover { transform: none; }
+.ob-tiene { position: absolute; top: 8px; right: 8px; font-size: 10px; font-weight: 600; color: var(--cyan);
+  background: rgba(34,211,238,.12); border: 1px solid rgba(34,211,238,.3); border-radius: 10px; padding: 1px 7px; }
+
+/* Móvil: el botón de continuar pasa debajo del título, a todo el ancho */
+@media (max-width: 640px) {
+  .ob-select-header { flex-direction: column; align-items: stretch; gap: 12px; padding: calc(16px + env(safe-area-inset-top)) 16px 12px; }
+  .ob-select-title { font-size: 22px; }
+  .ob-finish-btn { justify-content: center; width: 100%; }
+}
+
+/* Imagen de consola en la tarjeta del asistente */
+.ob-consola-avatar-img { padding: 10px 14px; height: 110px; }
+.ob-consola-avatar-img img { width: 100%; height: 100%; object-fit: contain; display: block;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,.45)); transition: transform .15s; }
+.ob-consola:hover .ob-consola-avatar-img img { transform: scale(1.05); }
+.ob-tipo-ordenador { background: rgba(250,204,21,.1); color: #facc15; border: 1px solid rgba(250,204,21,.3); }
+.ob-tipo-arcade    { background: rgba(244,114,182,.1); color: #f472b6; border: 1px solid rgba(244,114,182,.3); }
+@media (max-width: 640px) {
+  .ob-logo { gap: 12px; }
+  .ob-logo img { width: 48px; height: 48px; }
+  .ob-logo-text { font-size: 38px; letter-spacing: 0.08em; }
+}
