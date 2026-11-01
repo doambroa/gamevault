@@ -1,6 +1,10 @@
 # 🎮 GameVault 1.8 — Guía de uso
 
-## Instalar sin complicaciones (recomendado)
+Tu colección de videojuegos y consolas: duración (HowLongToBeat), ventas, estadísticas y catálogo en PDF. Para Windows, Android e iPhone.
+
+## ⬇️ Descargar e instalar (recomendado)
+
+Ve a **[Descargas → última versión](https://github.com/doambroa/gamevault/releases/latest)** y baja el fichero de tu dispositivo. No hace falta nada más.
 
 | Dispositivo | Fichero | Cómo |
 |---|---|---|
@@ -10,9 +14,17 @@
 
 > Windows SmartScreen puede avisar de "editor desconocido" porque el instalador no está firmado con un certificado comercial: *Más información → Ejecutar de todas formas*.
 
+### ¿Has descargado el código? Doble clic en `GameVault.bat`
+
+Si bajas el proyecto con *Code → Download ZIP* (o `git clone`), descomprímelo y haz **doble clic en `GameVault.bat`**. No hay nada más que lanzar:
+
+- **La primera vez** instala lo que falta: Node.js, si no lo tienes (Windows puede pedir permiso una vez), y las dependencias. Después prepara la app. Tarda unos minutos.
+- **Las siguientes veces** abre GameVault en unos segundos. Si has actualizado el código, se prepara de nuevo él solo.
+- La colección se guarda en la carpeta `db\` del proyecto.
+
 ### ¿Dónde están mis datos?
 - **Windows instalado:** `%APPDATA%\gamevault\gamevault.db` (la barra de título muestra la ruta; clic para abrir la carpeta).
-- **Modo desarrollo (`2-EJECUTAR.bat`):** `db\gamevault.db` dentro de esta carpeta.
+- **Desde el código (`GameVault.bat`):** `db\gamevault.db` dentro de la carpeta del proyecto.
 - **Android:** dentro de la propia app. *Más → Exportar JSON* guarda una copia en `Descargas/GameVault/`.
 
 **Pasar la colección de un sitio a otro** (del modo desarrollo a la versión instalada, o del PC al móvil):
@@ -104,9 +116,9 @@ Notas:
 
 | Fichero | Para qué |
 |---|---|
-| `1-INSTALAR.bat` | Instala dependencias (solo la primera vez; requiere Node.js LTS de https://nodejs.org) |
-| `2-EJECUTAR.bat` | Abre la app en modo desarrollo |
-| `3-CREAR-INSTALADOR.bat` | Genera `dist\GameVault-Setup-x.y.z.exe` |
+| `GameVault.bat` | Abre la app (instala lo necesario la primera vez) |
+| `herramientas\Modo desarrollo.bat` | Abre la app con recarga automática al guardar cambios en el código |
+| `herramientas\Crear instalador.bat` | Genera `dist\GameVault-Setup-x.y.z.exe` |
 | `npm test` | Pruebas automáticas del núcleo y del importador |
 | `npm run pack-android` | Genera el APK (Linux/macOS/WSL con Java 17+; descarga sus herramientas de GitHub). La clave de firma es `android/gamevault-release.jks` (contraseña `gamevault`): **guárdala**, las actualizaciones del APK deben firmarse con la misma. |
 

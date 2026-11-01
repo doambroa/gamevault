@@ -38,7 +38,15 @@ function tools() {
   fs.mkdirSync(TOOLS, { recursive: true });
   for (const [f, url] of Object.entries(DL)) {
     const p = path.join(TOOLS, f);
-    if (!fs.existsSync(p)) { step('descargando ' + f); sh('curl', ['-sSL', '-o', p, url]); }
+    // Todas son .jar/.zip: si un fichero guardado no empieza por "PK" es una descarga
+    // cortada o una página de error → se borra y se vuelve a bajar (con -f, curl falla ante errores HTTP)
+    const valido = () => { try { const b = Buffer.alloc(2); const fd = fs.openSync(p, 'r'); fs.readSync(fd, b, 0, 2, 0); fs.closeSync(fd); return b.toString() === 'PK'; } catch { return false; } };
+    if (fs.existsSync(p) && !valido()) { step(f + ' está dañado: se descarga de nuevo'); fs.unlinkSync(p); }
+    if (!fs.existsSync(p)) {
+      step('descargando ' + f);
+      sh('curl', ['-fsSL', '--retry', '3', '-o', p, url]);
+      if (!valido()) { fs.rmSync(p, { force: true }); throw new Error(`La descarga de ${f} no es válida (${url}). Revisa la conexión y vuelve a intentarlo.`); }
+    }
   }
   const aapt2 = path.join(TOOLS, process.platform === 'win32' ? 'aapt2.exe' : 'aapt2');
   if (!fs.existsSync(aapt2)) {

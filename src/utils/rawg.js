@@ -1,5 +1,5 @@
-const BASE = 'https://api.rawg.io/api';
 import keys from '../core/keys';
+const BASE = 'https://api.rawg.io/api';
 const DEFAULT_KEY = keys.RAWG_KEY || '';   // viene de .env.local al compilar (scripts/gen-keys.js)
 
 export const getKey  = () => localStorage.getItem('rawg_api_key') || DEFAULT_KEY;
