@@ -116,3 +116,11 @@ Estructura:
 - `electron/` — proceso principal de escritorio.
 - `android/` — envoltorio nativo del APK (WebView + proxy HTTP).
 - `tests/` — pruebas automáticas.
+
+## Licencia
+
+Dominio público ([The Unlicense](LICENSE)): haz lo que quieras con este código, sin pedir permiso ni citar a nadie.
+
+Las imágenes de consolas de `public/consolas/` proceden de Wikimedia Commons y conservan cada una su propia licencia (consulta la ficha de cada archivo en commons.wikimedia.org); no están cubiertas por esta dedicación. Las dependencias de npm tienen también sus propias licencias.
+
+Los datos e imágenes que la app obtiene de servicios externos (RAWG, HowLongToBeat, VGChartz y Wikipedia) siguen sujetos a las condiciones de cada servicio.
