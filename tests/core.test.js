@@ -515,3 +515,10 @@ test('Accesorios: alta, edición, por consola, exportar/importar y borrado en ca
   await c2.handle('data:wipe', { plataformas: true });
   assert.equal((await c2.handle('data:counts')).accesorios, 0);
 });
+
+test('Importar colección borra la marca de imágenes por defecto (para que la interfaz las vuelva a poner)', async () => {
+  const c = mk({ persist: () => {} });
+  await c.handle('cfg:set', 'imgsPorDefecto', 'hecho');
+  c.importColeccion(INITIAL, { replace: true });
+  assert.equal(await c.handle('cfg:get', 'imgsPorDefecto'), null);
+});

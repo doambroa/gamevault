@@ -185,6 +185,7 @@ function createCore({ SQL, bytes, persist = () => {}, http = null, onChange = ()
       juegos.forEach(j => ins('juegos', j));
       deseos.forEach(d => ins('deseos', d));
       accesorios.forEach(a => ins('accesorios', a));
+      db.run("DELETE FROM config WHERE key='imgsPorDefecto'");   // la interfaz pondrá las imágenes por defecto que falten
       db.run('UPDATE juegos SET unidades=1 WHERE unidades IS NULL OR unidades<1');
       db.run('UPDATE accesorios SET unidades=1 WHERE unidades IS NULL OR unidades<1');
       db.run('UPDATE plataformas SET unidades=1 WHERE unidades IS NULL OR unidades<1');

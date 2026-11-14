@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Titlebar         from './components/layout/Titlebar';
 import InstallHint from './components/ios/InstallHint';
+import { asignarImagenesPorDefecto } from './utils/imagenesPorDefecto';
 import Sidebar          from './components/layout/Sidebar';
 import Dashboard        from './pages/Dashboard/Dashboard';
 import PlataformasPage  from './pages/Plataformas/PlataformasPage';
@@ -23,7 +24,10 @@ export default function App() {
   useEffect(() => {
     if (api) {
       api.app.isFirstRun()
-        .then(is => { setFirstRun(is); setChecking(false); })
+        .then(async is => {
+          if (!is) { try { await asignarImagenesPorDefecto(); } catch (e) { console.warn('Imágenes por defecto:', e); } }
+          setFirstRun(is); setChecking(false);
+        })
         .catch(() => setChecking(false));
     } else {
       setChecking(false);
@@ -41,7 +45,7 @@ export default function App() {
     <div className="shell">
       {isDesktop && <Titlebar/>}
       <InstallHint/>
-      <OnboardingPage onComplete={() => setFirstRun(false)}/>
+      <OnboardingPage onComplete={async () => { try { await asignarImagenesPorDefecto(); } catch {} setFirstRun(false); }}/>
     </div>
   );
 

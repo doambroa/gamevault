@@ -59,13 +59,12 @@ export default function PlataformasPage() {
               const imgs = typeof p.imagenes==='string' ? JSON.parse(p.imagenes||'[]') : (p.imagenes||[]);
               return (
                 <div key={p.id} className="plat-card" onClick={() => nav(`/plataformas/${p.id}`)}>
-                  <div className="plat-card-top">
-                    <div className="plat-icon">
-                      {imgs[0]
-                        ? <img src={imgSrc(imgs[0])}
-                            alt="" style={{ width:36, height:36, objectFit:String(imgs[0]).startsWith('./consolas/')?'contain':'cover', borderRadius:'var(--r)' }}/>
-                        : <Monitor size={18}/>}
-                    </div>
+                  <div className={'plat-card-top' + (imgs[0] ? ' con-foto' : '')}>
+                    {imgs[0]
+                      ? <div className={'plat-foto' + (String(imgs[0]).startsWith('./consolas/') ? ' plat-foto-consola' : '')}>
+                          <img src={imgSrc(imgs[0])} alt="" loading="lazy"/>
+                        </div>
+                      : <div className="plat-icon"><Monitor size={18}/></div>}
                     <div className="plat-actions">
                       <button className="icon-btn" onClick={e => {
                         e.stopPropagation();
