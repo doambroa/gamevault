@@ -214,6 +214,17 @@ ipcMain.handle('io:importConfirm', async (_,filePath) => {
 ipcMain.handle('io:openFolder', () => shell.openPath(dbDir()));
 ipcMain.handle('io:dbPath',     () => dbPath());
 
+// Desinstalar desde la propia app: abre el asistente de desinstalación (no Configuración de Windows)
+const uninstallerPath = () => path.join(path.dirname(process.execPath), 'Uninstall GameVault.exe');
+ipcMain.handle('app:canUninstall', () => process.platform === 'win32' && app.isPackaged && fs.existsSync(uninstallerPath()));
+ipcMain.handle('app:uninstall', () => {
+  const exe = uninstallerPath();
+  if (process.platform !== 'win32' || !app.isPackaged || !fs.existsSync(exe)) return { error: 'El desinstalador solo existe en la versión instalada de Windows.' };
+  require('child_process').spawn(exe, [], { detached: true, stdio: 'ignore' }).unref();
+  setTimeout(() => app.quit(), 300);          // cerrar la app para que pueda borrar sus ficheros
+  return { ok: true };
+});
+
 // ─── PDF Export ────────────────────────────────────────────────────────────────
 ipcMain.handle('io:exportPdf', async () => {
   const { filePath } = await dialog.showSaveDialog(win, {

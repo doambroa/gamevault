@@ -1,6 +1,6 @@
 {
   "name": "gamevault",
-  "version": "1.9.1",
+  "version": "1.9.2",
   "description": "GameVault — colección de videojuegos y consolas",
   "author": {
     "name": "Daniel"
@@ -82,7 +82,14 @@
       "installerIcon": "buildres/icon.ico",
       "uninstallerIcon": "buildres/icon.ico",
       "artifactName": "GameVault-Setup-${version}.${ext}",
-      "language": "3082"
+      "language": "1034",
+      "menuCategory": "GameVault",
+      "include": "buildres/installer.nsh",
+      "installerLanguages": [
+        "es_ES"
+      ],
+      "installerSidebar": "buildres/sidebar.bmp",
+      "uninstallerSidebar": "buildres/sidebar.bmp"
     },
     "extraMetadata": {
       "main": "electron/main.js"

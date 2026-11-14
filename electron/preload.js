@@ -68,6 +68,8 @@ contextBridge.exposeInMainWorld('api', {
   },
   app: {
     isFirstRun:         () => ipcRenderer.invoke('app:isFirstRun'),
+    canUninstall:       () => ipcRenderer.invoke('app:canUninstall'),
+    uninstall:          () => ipcRenderer.invoke('app:uninstall'),
     completeOnboarding: () => ipcRenderer.invoke('app:completeOnboarding'),
   },
   // Avisos de cambios hechos en segundo plano (p.ej. llegan datos de HLTB/ventas)

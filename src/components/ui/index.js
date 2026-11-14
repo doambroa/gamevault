@@ -213,6 +213,8 @@ export default function SettingsModal({ open, onClose, onWipe }) {
   const [key, setKey]   = useState('');
   const [saved, setSaved] = useState(false);
   useEffect(() => { if (open) { setKey(getKey()); setSaved(false); } }, [open]);
+  const [puedeDesinstalar, setPuedeDesinstalar] = useState(false);
+  useEffect(() => { if (open) window.api?.app?.canUninstall?.().then(v => setPuedeDesinstalar(!!v)).catch(() => {}); }, [open]);
   const save = () => {
     saveKey(key);
     window.api?.config?.set('rawg_api_key', key.trim()).catch?.(() => {});   // también la usa el núcleo (búsqueda de nombres alternativos)
@@ -241,6 +243,15 @@ export default function SettingsModal({ open, onClose, onWipe }) {
             <p>Borra consolas, juegos y/o lista de deseos. Los ajustes se conservan.</p>
           </div>
           <Btn variant="danger" size="sm" onClick={() => { onClose(); onWipe(); }}>Borrar toda mi colección…</Btn>
+        </div>
+      )}
+      {puedeDesinstalar && (
+        <div className="danger-zone" style={{ marginTop: 10 }}>
+          <div>
+            <strong>Desinstalar GameVault</strong>
+            <p>Abre el asistente de desinstalación y cierra la app. Tu colección no se borra.</p>
+          </div>
+          <Btn variant="ghost" size="sm" onClick={() => window.api.app.uninstall()}>Desinstalar…</Btn>
         </div>
       )}
     </Modal>

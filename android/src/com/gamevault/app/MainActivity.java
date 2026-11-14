@@ -257,7 +257,7 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
-        public String version() { return "1.9.1"; }
+        public String version() { return "1.9.2"; }
     }
 
     // ── Selector de archivos (<input type="file">) ────────────────────────────

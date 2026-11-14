@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Monitor, Gamepad2, Heart, BookOpen, Star, TrendingUp, FileText, Loader } from 'lucide-react';
+import { Monitor, Gamepad2, Heart, BookOpen, TrendingUp, FileText, Loader } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader, Btn } from '../../components/ui/index';
 import { firstImg } from '../../utils/imgSrc';
@@ -51,19 +51,13 @@ export default function Dashboard() {
           onClick={() => nav('/deseos')} hint="Ver lista"/>
       </div>
 
-      {/* Segunda fila de stats: prestados (solo si hay) + valoración media (solo si hay) */}
-      {(s?.totalPrestados > 0 || s?.mediaValoracion != null) && (
+      {/* Segunda fila de stats: prestados (solo si hay) */}
+      {s?.totalPrestados > 0 && (
         <div className="stats-grid" style={{marginTop:0}}>
-          {s?.totalPrestados > 0 && (
-            <StatCard cls="stat-gold" icon={<BookOpen size={20}/>}
-              label="Prestados" value={s.totalPrestados}
-              onClick={() => nav('/juegos?prestados=1')}
-              hint="Ver prestados"/>
-          )}
-          {s?.mediaValoracion != null && (
-            <StatCard cls="stat-cyan" icon={<Star size={20}/>}
-              label="Nota media" value={`${s.mediaValoracion}/10`}/>
-          )}
+          <StatCard cls="stat-gold" icon={<BookOpen size={20}/>}
+            label="Prestados" value={s.totalPrestados}
+            onClick={() => nav('/juegos?prestados=1')}
+            hint="Ver prestados"/>
         </div>
       )}
 
