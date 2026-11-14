@@ -1,5 +1,20 @@
 # GameVault 1.8 — Informe de pruebas y errores corregidos
 
+
+## Versión 1.9 (14-11-2026)
+
+| Batería | Resultado |
+|---|---|
+| Pruebas unitarias | ✅ 44/44. Nueva: accesorios (alta, validación, edición parcial, recuento por consola, exportar → importar, borrado con su consola y en «Borrar colección») |
+| E2E de accesorios (escritorio) | ✅ 8/8: sección vacía, alta con validación, ×4 unidades y precio, edición, recuento en la tarjeta de la consola, tema claro y eliminación con confirmación |
+| E2E de escritorio completa | ✅ 35/35 |
+| Base de datos de 1.8 abierta con 1.9 | ✅ La tabla de accesorios se crea sola y no se pierde ningún dato |
+
+Errores encontrados y corregidos:
+1. Al editar un accesorio enviando solo algunos campos, se vaciaban los demás. Ahora se conservan.
+2. `package-lock.json` estaba desfasado (versión 1.0.0, sin las dependencias reales), y `npm ci` podía fallar al instalar.
+3. La prueba de escritorio esperaba la colección de ejemplo antigua (56 juegos de N64, «DreamCast»). Ahora lee los valores de la colección de ejemplo publicada.
+
 ## Versión 1.8 (20-10-2026)
 
 | Batería | Resultado |
