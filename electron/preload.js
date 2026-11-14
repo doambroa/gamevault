@@ -37,6 +37,13 @@ contextBridge.exposeInMainWorld('api', {
     delete:          (id)=> ipcRenderer.invoke('d:delete', id),
     moveToCollection:(d) => ipcRenderer.invoke('d:move', d),
   },
+  accesorios: {
+    getAll:          ()  => ipcRenderer.invoke('a:all'),
+    getByPlataforma: (id)=> ipcRenderer.invoke('a:byPlat', id),
+    create:          (d) => ipcRenderer.invoke('a:create', d),
+    update:          (d) => ipcRenderer.invoke('a:update', d),
+    delete:          (id)=> ipcRenderer.invoke('a:delete', id),
+  },
   stats:  { get: () => ipcRenderer.invoke('stats') },
   config: {
     get: (k)    => ipcRenderer.invoke('cfg:get', k),

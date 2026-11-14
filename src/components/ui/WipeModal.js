@@ -22,7 +22,7 @@ export default function WipeModal({ open, onClose }) {
 
   const juegosForzados = sel.plataformas;
   const efectivo = { ...sel, juegos: sel.juegos || juegosForzados };
-  const total = n ? (efectivo.plataformas ? n.plataformas : 0) + (efectivo.juegos ? n.juegos : 0) + (efectivo.deseos ? n.deseos : 0) : 0;
+  const total = n ? (efectivo.plataformas ? n.plataformas + (n.accesorios || 0) : 0) + (efectivo.juegos ? n.juegos : 0) + (efectivo.deseos ? n.deseos : 0) : 0;
   const todo = efectivo.plataformas && efectivo.juegos && efectivo.deseos;
   const listo = txt.trim().toUpperCase() === PALABRA && (efectivo.plataformas || efectivo.juegos || efectivo.deseos);
 
@@ -57,7 +57,8 @@ export default function WipeModal({ open, onClose }) {
       </div>
 
       <div className="wipe-opts">
-        <Opcion k="plataformas" label="Borrar Plataformas" count={n?.plataformas}/>
+        <Opcion k="plataformas" label="Borrar Plataformas" count={n?.plataformas}
+          note={n?.accesorios ? `Incluye sus ${n.accesorios} accesorio${n.accesorios === 1 ? '' : 's'}.` : null}/>
         <Opcion k="juegos" label="Borrar Juegos" count={n?.juegos} disabled={juegosForzados}
           note={juegosForzados ? 'Los juegos van con su consola: al borrar las plataformas se borran también.' : null}/>
         <Opcion k="deseos" label="Borrar lista de deseos" count={n?.deseos}/>

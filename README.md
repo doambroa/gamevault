@@ -1,4 +1,4 @@
-# 🎮 GameVault 1.8 — Guía de uso
+# 🎮 GameVault 1.9 — Guía de uso
 
 Tu colección de videojuegos y consolas: duración (HowLongToBeat), ventas, estadísticas y catálogo en PDF. Para Windows, Android e iPhone.
 
@@ -8,9 +8,9 @@ Ve a **[Descargas → última versión](https://github.com/doambroa/gamevault/re
 
 | Dispositivo | Fichero | Cómo |
 |---|---|---|
-| **Windows 10 / 11** | `GameVault-Setup-1.8.0.exe` | Doble clic → Siguiente → Instalar. No pide permisos de administrador. Crea acceso directo en el escritorio y en el menú Inicio. Se desinstala desde *Configuración → Aplicaciones*. |
-| **Android 7 o superior** (probado para Android 14/15) | `GameVault-1.8.0.apk` | Cópialo al móvil (o descárgalo allí) y ábrelo. Android pedirá permitir *"Instalar aplicaciones desconocidas"* para el navegador o gestor de archivos: acéptalo solo para esta instalación. |
-| **iPhone / iPad** | `GameVault-web-1.8.0.zip` | No es un instalador: es la versión web, que se sirve desde tu servidor y se añade a la pantalla de inicio. Ver *«Versión para iPhone»* más abajo. |
+| **Windows 10 / 11** | `GameVault-Setup-1.9.0.exe` | Doble clic → Siguiente → Instalar. No pide permisos de administrador. Crea acceso directo en el escritorio y en el menú Inicio. Se desinstala desde *Configuración → Aplicaciones*. |
+| **Android 7 o superior** (probado para Android 14/15) | `GameVault-1.9.0.apk` | Cópialo al móvil (o descárgalo allí) y ábrelo. Android pedirá permitir *"Instalar aplicaciones desconocidas"* para el navegador o gestor de archivos: acéptalo solo para esta instalación. |
+| **iPhone / iPad** | `GameVault-web-1.9.0.zip` | No es un instalador: es la versión web, que se sirve desde tu servidor y se añade a la pantalla de inicio. Ver *«Versión para iPhone»* más abajo. |
 
 > Windows SmartScreen puede avisar de "editor desconocido" porque el instalador no está firmado con un certificado comercial: *Más información → Ejecutar de todas formas*.
 
@@ -33,6 +33,11 @@ Si bajas el proyecto con *Code → Download ZIP* (o `git clone`), descomprímelo
 Las bases de datos de versiones anteriores se actualizan solas al abrir la 1.8 (se añaden los campos nuevos sin perder nada).
 
 ---
+
+## Novedades de la 1.9
+
+- **Accesorios de cada consola.** En el detalle de cada consola hay una sección *Accesorios* para mandos, memorias, periféricos, cables o discos de limpieza. Cada uno puede llevar tipo, unidades, estado, precio, fecha y comentarios. Las tarjetas de *Plataformas* muestran cuántos accesorios tiene cada consola.
+- Los accesorios se exportan e importan junto con el resto de la colección. Si eliminas una consola, también se eliminan sus accesorios.
 
 ## Novedades de la 1.8
 
@@ -69,7 +74,7 @@ Las bases de datos de versiones anteriores se actualizan solas al abrir la 1.8 (
 
 Apple no permite instalar apps fuera de la App Store sin un Mac, Xcode y una cuenta de desarrollador (99 €/año). La alternativa es una **app web instalable**: se ve a pantalla completa, con icono propio, y los datos se quedan en el iPhone.
 
-1. Descomprime `GameVault-web-1.8.0.zip` de forma que `index.html` quede **directamente** en `C:\xampp\htdocs\gamevault\`, no dentro de otra subcarpeta.
+1. Descomprime `GameVault-web-1.9.0.zip` de forma que `index.html` quede **directamente** en `C:\xampp\htdocs\gamevault\`, no dentro de otra subcarpeta.
 2. Revisa XAMPP (viene así de serie): en `php.ini`, `extension=curl` sin `;` delante; en `httpd.conf`, `AllowOverride All` para htdocs, para que funcione el `.htaccess`. Reinicia Apache si cambias algo.
 3. **HTTPS con certificado válido** (imprescindible). El certificado autofirmado que trae XAMPP no sirve: Safari no la instalará como app ni guardará los datos. Opciones con tu dominio:
    - **win-acme** (Let's Encrypt para Windows): genera el certificado para Apache y lo renueva solo. Hay que abrir en el router los puertos 80 y 443 hacia tu PC.

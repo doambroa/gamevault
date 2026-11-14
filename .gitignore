@@ -13,3 +13,4 @@ db/gamevault.db
 src/core/keys.js
 android/*.jks
 android/*.keystore
+tests/e2e/shots/

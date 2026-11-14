@@ -9,6 +9,7 @@ import '../Juegos/JuegoPanel.css';
 import { useSort, SortTh } from '../../utils/useSort';
 import PlataformaForm from './PlataformaForm';
 import { DuracionTh, DuracionCell } from '../../components/Duracion';
+import Accesorios from './Accesorios';
 
 const api = window.api;
 const TC = { Sobremesa:'accent', Portátil:'cyan', PC:'gold', Híbrida:'green' };
@@ -239,6 +240,8 @@ export default function PlataformaDetail() {
         </div>
       )}
 
+      <Accesorios plataformaId={Number(id)}/>
+
       {/* Sliding panel — shows plat as context */}
       <JuegoPanel
         juego={panelJuego}
@@ -259,7 +262,7 @@ export default function PlataformaDetail() {
         title="Eliminar juego" message="¿Seguro que quieres eliminar este juego?"/>
       <ConfirmModal open={delPlat} onClose={() => setDelPlat(false)}
         onConfirm={async()=>{await api.plataformas.delete(Number(id));nav('/plataformas');}}
-        title="Eliminar plataforma" message="¿Eliminar esta plataforma y todos sus juegos?"/>
+        title="Eliminar plataforma" message="¿Eliminar esta plataforma con todos sus juegos y accesorios?"/>
 
       <PlataformaForm
         open={editPlat}

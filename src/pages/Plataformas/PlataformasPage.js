@@ -83,6 +83,7 @@ export default function PlataformasPage() {
                     <strong>{p.numJuegos || 0}</strong> juego{p.numJuegos === 1 ? '' : 's'}
                     {p.unidadesJuegos > p.numJuegos && <span style={{ color:'var(--text-3)' }}> · {p.unidadesJuegos} uds.</span>}
                     {(p.unidades || 1) > 1 && <span className="plat-uds">×{p.unidades} consolas</span>}
+                    {p.numAccesorios > 0 && <span style={{ color:'var(--text-3)' }}> · {p.numAccesorios} accesorio{p.numAccesorios === 1 ? '' : 's'}</span>}
                   </p>
                   <div className="plat-footer">
                     <Badge color={TC[p.tipo]||'default'}>{p.tipo||'—'}</Badge>

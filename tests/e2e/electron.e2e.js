@@ -199,7 +199,7 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
   });
 
   // ── Importar colección (TXT) ──────────────────────────────────────────────
-  await check('Importar colección desde TXT: juegos sin plataforma → DreamCast', async () => {
+  await check('Importar colección desde TXT: juegos sin plataforma → Dreamcast', async () => {
     const f = path.join(DATA, 'lista.txt');
     fs.writeFileSync(f, '- Shenmue\n- Crazy Taxi\n- Crazy Taxi\nSoulcalibur | Dreamcast\n');
     await page.getByRole('button', { name: /Importar colección/ }).click();
@@ -207,7 +207,7 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
     await modal.locator('input[type=file]').setInputFiles(f);
     await modal.getByText(/3 juegos detectados/).waitFor();
     await modal.getByText(/agrupada/).waitFor();
-    await modal.locator('select').last().selectOption({ label: 'DreamCast' });
+    await modal.locator('select').last().selectOption({ label: 'Dreamcast' });
     await modal.getByText('Buscar carátulas en RAWG').click();      // desactivar (sin red)
     await shot('import-review');
     await modal.getByRole('button', { name: /Importar 3 juegos/ }).click();
@@ -232,7 +232,7 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
     await modal.getByRole('button', { name: /Añadir a deseos/ }).click();
     await page.locator('td', { hasText: 'Jet Set Radio' }).waitFor();
     await page.locator('[title="Mover a colección"]').first().click();
-    await page.locator('.modal-box select').selectOption({ label: 'DreamCast' });
+    await page.locator('.modal-box select').selectOption({ label: 'Dreamcast' });
     await page.getByRole('button', { name: /Añadir a colección/ }).click();
     await page.getByText('Lista vacía').waitFor();
   });
@@ -312,7 +312,10 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
   await check('Plataformas: cada tarjeta muestra el nº de juegos', async () => {
     await page.getByRole('button', { name: 'Plataformas' }).click();
     const t = await page.locator('.plat-card', { hasText: 'Nintendo 64' }).innerText();
-    assert(/56\s*juegos/.test(t), JSON.stringify(t));
+    const fx = require(path.join(APP, 'tests/fixtures/coleccion-ejemplo.json'));
+    const n64 = fx.plataformas.find(p => p.nombre === 'Nintendo 64');
+    const esperado = fx.juegos.filter(j => j.plataformaId === n64.id).length;
+    assert(new RegExp(esperado + '\\s*juegos?').test(t), `esperaba ${esperado} juegos: ` + JSON.stringify(t));
     await shot('plataformas-contador');
   });
   await check('Estadísticas: el zoom muestra duración, ventas y valoración; clic abre el detalle', async () => {
@@ -415,7 +418,7 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
   });
   await check('Borrar una plataforma borra también sus juegos (sin huérfanos)', async () => {
     const before = await app.evaluate(async () => 0);
-    await page.locator('.plat-name', { hasText: 'DreamCast' }).click();
+    await page.locator('.plat-name', { hasText: 'Dreamcast' }).click();
     await page.getByRole('button', { name: /Eliminar consola/ }).click();
     await page.locator('.modal-box').getByRole('button', { name: 'Eliminar' }).click();
     await page.waitForTimeout(500);

@@ -190,6 +190,10 @@ export function createWebApi() {
       getAll: () => call('d:all'), create: d => call('d:create', d), update: d => call('d:update', d),
       delete: id => call('d:delete', id), moveToCollection: d => call('d:move', d),
     },
+    accesorios: {
+      getAll: () => call('a:all'), getByPlataforma: id => call('a:byPlat', id),
+      create: d => call('a:create', d), update: d => call('a:update', d), delete: id => call('a:delete', id),
+    },
     stats: { get: () => call('stats') },
     config: { get: k => call('cfg:get', k), set: (k, v) => call('cfg:set', k, v) },
     io: {

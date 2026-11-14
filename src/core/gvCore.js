@@ -44,6 +44,13 @@ const SCHEMA = `
     imagenes TEXT DEFAULT '[]', rawgId TEXT,
     createdAt TEXT DEFAULT (datetime('now')), updatedAt TEXT DEFAULT (datetime('now'))
   );
+  CREATE TABLE IF NOT EXISTS accesorios (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, plataformaId INTEGER NOT NULL,
+    nombre TEXT NOT NULL, tipo TEXT, unidades INTEGER DEFAULT 1, precio REAL,
+    estado TEXT, fechaAdquisicion TEXT, comentarios TEXT, imagenes TEXT DEFAULT '[]',
+    createdAt TEXT DEFAULT (datetime('now')), updatedAt TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (plataformaId) REFERENCES plataformas(id) ON DELETE CASCADE
+  );
   CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT);
 `;
 
@@ -58,6 +65,7 @@ const MIGRATIONS = {
     ['tituloOriginal', 'TEXT'], ['tituloIngles', 'TEXT'], ['hltbName', 'TEXT'],
   ],
   deseos: [],
+  accesorios: [],
 };
 
 const PLAT_FIELDS = ['nombre', 'marca', 'modelo', 'tipo', 'fechaAdquisicion', 'fechaLanzamientoEuropa',
@@ -66,6 +74,8 @@ const PLAT_FIELDS = ['nombre', 'marca', 'modelo', 'tipo', 'fechaAdquisicion', 'f
 const JUEGO_FIELDS = ['plataformaId', 'nombre', 'precio', 'genero', 'numeroDeJugadores', 'modoDeJuego',
   'desarrolladora', 'fechaAdquisicion', 'fechaLanzamiento', 'region', 'idiomas', 'estado', 'comentarios',
   'imagenes', 'valoracion', 'prestadoA', 'fechaPrestamo', 'unidades', 'tituloOriginal'];
+const ACC_FIELDS = ['plataformaId', 'nombre', 'tipo', 'unidades', 'precio', 'estado', 'fechaAdquisicion',
+  'comentarios', 'imagenes'];
 const DESEO_FIELDS = ['nombre', 'plataforma', 'genero', 'desarrolladora', 'fechaLanzamiento', 'precioEstimado',
   'prioridad', 'url', 'notas', 'imagenes', 'rawgId'];
 const NUMERIC = new Set(['precio', 'precioSalida', 'precioAmerica', 'precioAsia', 'numeroDeJugadores',
@@ -139,20 +149,25 @@ function createCore({ SQL, bytes, persist = () => {}, http = null, onChange = ()
     const plats = Array.isArray(data.plataformas) ? data.plataformas : [];
     const juegos = Array.isArray(data.juegos) ? data.juegos : [];
     const deseos = Array.isArray(data.deseos) ? data.deseos : [];
+    const accesorios = Array.isArray(data.accesorios) ? data.accesorios : [];
     if (!plats.length && !juegos.length && !deseos.length) throw new Error('El fichero no contiene plataformas, juegos ni deseos');
     // Sin claves foráneas durante la importación: INSERT OR REPLACE en una plataforma
     // borraría en cascada sus juegos, y un juego huérfano abortaría todo el fichero.
     db.run('PRAGMA foreign_keys = OFF');
-    try { return importBody(plats, juegos, deseos, replace); }
+    try { return importBody(plats, juegos, deseos, accesorios, replace); }
     finally {
       db.run('DELETE FROM juegos WHERE plataformaId NOT IN (SELECT id FROM plataformas)');
+      db.run('DELETE FROM accesorios WHERE plataformaId NOT IN (SELECT id FROM plataformas)');
       db.run('PRAGMA foreign_keys = ON');
       save();
     }
   }
-  function importBody(plats, juegos, deseos, replace) {
+  function importBody(plats, juegos, deseos, accesorios, replace) {
     return batch(() => {
-      if (replace) { db.run('DELETE FROM juegos'); db.run('DELETE FROM plataformas'); if (deseos.length) db.run('DELETE FROM deseos'); }
+      if (replace) {
+        db.run('DELETE FROM juegos'); db.run('DELETE FROM accesorios'); db.run('DELETE FROM plataformas');
+        if (deseos.length) db.run('DELETE FROM deseos');
+      }
       const ins = (table, row) => {
         const valid = cols(table);
         const keys = Object.keys(row).filter(k => valid.includes(k));
@@ -169,16 +184,19 @@ function createCore({ SQL, bytes, persist = () => {}, http = null, onChange = ()
       plats.forEach(p => ins('plataformas', p));
       juegos.forEach(j => ins('juegos', j));
       deseos.forEach(d => ins('deseos', d));
+      accesorios.forEach(a => ins('accesorios', a));
       db.run('UPDATE juegos SET unidades=1 WHERE unidades IS NULL OR unidades<1');
+      db.run('UPDATE accesorios SET unidades=1 WHERE unidades IS NULL OR unidades<1');
       db.run('UPDATE plataformas SET unidades=1 WHERE unidades IS NULL OR unidades<1');
-      return { plataformas: plats.length, juegos: juegos.length, deseos: deseos.length };
+      return { plataformas: plats.length, juegos: juegos.length, deseos: deseos.length, accesorios: accesorios.length };
     });
   }
   const exportData = () => ({
-    version: '1.8', app: 'GameVault', exportedAt: new Date().toISOString(),
+    version: '1.9', app: 'GameVault', exportedAt: new Date().toISOString(),
     plataformas: all('SELECT * FROM plataformas'),
     juegos: all('SELECT * FROM juegos'),
     deseos: all('SELECT * FROM deseos'),
+    accesorios: all('SELECT * FROM accesorios'),
   });
 
   // ── Servicios externos (HLTB / ventas / RAWG) ────────────────────────────
@@ -290,7 +308,8 @@ function createCore({ SQL, bytes, persist = () => {}, http = null, onChange = ()
     // Plataformas
     'p:all': () => all(`SELECT p.*,
         (SELECT COUNT(*) FROM juegos j WHERE j.plataformaId=p.id) numJuegos,
-        (SELECT COALESCE(SUM(COALESCE(j.unidades,1)),0) FROM juegos j WHERE j.plataformaId=p.id) unidadesJuegos
+        (SELECT COALESCE(SUM(COALESCE(j.unidades,1)),0) FROM juegos j WHERE j.plataformaId=p.id) unidadesJuegos,
+        (SELECT COUNT(*) FROM accesorios a WHERE a.plataformaId=p.id) numAccesorios
       FROM plataformas p ORDER BY p.nombre COLLATE NOCASE`),
     'p:one': id => one('SELECT * FROM plataformas WHERE id=?', [Number(id)]),
     'p:create': d => {
@@ -304,7 +323,11 @@ function createCore({ SQL, bytes, persist = () => {}, http = null, onChange = ()
       return one('SELECT * FROM plataformas WHERE id=?', [d.id]);
     },
     'p:delete': id => {
-      batch(() => { db.run('DELETE FROM juegos WHERE plataformaId=?', [Number(id)]); db.run('DELETE FROM plataformas WHERE id=?', [Number(id)]); });
+      batch(() => {
+        db.run('DELETE FROM juegos WHERE plataformaId=?', [Number(id)]);
+        db.run('DELETE FROM accesorios WHERE plataformaId=?', [Number(id)]);
+        db.run('DELETE FROM plataformas WHERE id=?', [Number(id)]);
+      });
       return { ok: true };
     },
 
@@ -385,6 +408,25 @@ function createCore({ SQL, bytes, persist = () => {}, http = null, onChange = ()
     },
 
     // Deseos
+    // Accesorios (mandos, periféricos, memorias…) de cada consola
+    'a:all': () => all(`SELECT a.*,p.nombre plataformaNombre FROM accesorios a
+      LEFT JOIN plataformas p ON a.plataformaId=p.id ORDER BY p.nombre COLLATE NOCASE, a.nombre COLLATE NOCASE`),
+    'a:byPlat': id => all('SELECT * FROM accesorios WHERE plataformaId=? ORDER BY nombre COLLATE NOCASE', [Number(id)]),
+    'a:create': d => {
+      if (!d || !String(d.nombre || '').trim()) throw new Error('El accesorio necesita un nombre');
+      if (!d.plataformaId) throw new Error('El accesorio necesita una consola');
+      const id = insertRow('accesorios', ACC_FIELDS, { unidades: 1, ...d });
+      return one('SELECT * FROM accesorios WHERE id=?', [id]);
+    },
+    'a:update': d => {
+      if (!d || !d.id) throw new Error('Falta el id');
+      const cur = one('SELECT * FROM accesorios WHERE id=?', [Number(d.id)]);
+      if (!cur) throw new Error('El accesorio no existe');
+      updateRow('accesorios', ACC_FIELDS, { ...cur, ...d });          // lo que no llega se conserva
+      return one('SELECT * FROM accesorios WHERE id=?', [d.id]);
+    },
+    'a:delete': id => { run('DELETE FROM accesorios WHERE id=?', [Number(id)]); return { ok: true }; },
+
     'd:all': () => all('SELECT * FROM deseos ORDER BY prioridad, nombre COLLATE NOCASE'),
     'd:create': d => {
       if (!d || !String(d.nombre || '').trim()) throw new Error('El nombre es obligatorio');
@@ -443,6 +485,7 @@ function createCore({ SQL, bytes, persist = () => {}, http = null, onChange = ()
       plataformas: one('SELECT COUNT(*) n FROM plataformas').n,
       juegos: one('SELECT COUNT(*) n FROM juegos').n,
       deseos: one('SELECT COUNT(*) n FROM deseos').n,
+      accesorios: one('SELECT COUNT(*) n FROM accesorios').n,
     }),
     'data:wipe': (opts = {}) => {
       const o = { plataformas: !!opts.plataformas, juegos: !!opts.juegos || !!opts.plataformas, deseos: !!opts.deseos };
@@ -450,7 +493,7 @@ function createCore({ SQL, bytes, persist = () => {}, http = null, onChange = ()
       queue.length = 0;                                   // descartar búsquedas pendientes de HLTB/ventas
       batch(() => {
         if (o.juegos) db.run('DELETE FROM juegos');
-        if (o.plataformas) db.run('DELETE FROM plataformas');
+        if (o.plataformas) { db.run('DELETE FROM accesorios'); db.run('DELETE FROM plataformas'); }
         if (o.deseos) db.run('DELETE FROM deseos');
         // Sin consolas → al volver a abrir, el asistente de bienvenida
         if (o.plataformas) db.run("DELETE FROM config WHERE key='onboardingDone'");

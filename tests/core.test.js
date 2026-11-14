@@ -465,17 +465,53 @@ test('Borrar colección: por partes y completo (plataformas arrastra juegos y vu
   assert.ok(n0.plataformas > 0 && n0.juegos > 0 && n0.deseos > 0);
   // Solo la lista de deseos
   let r = await c.handle('data:wipe', { deseos: true });
-  assert.deepEqual(await c.handle('data:counts'), { ...n0, deseos: 0 });
+  assert.deepEqual(await c.handle('data:counts'), { ...n0, deseos: 0, accesorios: 0 });
   assert.equal(r.borrados.deseos, n0.deseos);
   // Solo juegos: las consolas se quedan
   r = await c.handle('data:wipe', { juegos: true });
-  assert.deepEqual(await c.handle('data:counts'), { plataformas: n0.plataformas, juegos: 0, deseos: 0 });
+  assert.deepEqual(await c.handle('data:counts'), { plataformas: n0.plataformas, juegos: 0, deseos: 0, accesorios: 0 });
   assert.equal(await c.handle('app:isFirstRun'), false);
   // Plataformas sin marcar juegos: se borran igualmente (los juegos pertenecen a la consola)
   await c.importColeccion(INITIAL, { replace: true });
   r = await c.handle('data:wipe', { plataformas: true, juegos: false });
-  assert.deepEqual(await c.handle('data:counts'), { plataformas: 0, juegos: 0, deseos: 0 });
+  assert.deepEqual(await c.handle('data:counts'), { plataformas: 0, juegos: 0, deseos: 0, accesorios: 0 });
   assert.equal(r.borrados.juegos, n0.juegos);
   assert.equal(await c.handle('app:isFirstRun'), true, 'sin consolas vuelve el asistente');
   assert.equal(await c.handle('cfg:get', 'rawg_api_key'), 'k123', 'los ajustes se conservan');
+});
+
+test('Accesorios: alta, edición, por consola, exportar/importar y borrado en cascada', async () => {
+  const c = mk({ persist: () => {} });
+  const wii = await c.handle('p:create', { nombre: 'Wii', marca: 'Nintendo' });
+  const ps2 = await c.handle('p:create', { nombre: 'PlayStation 2', marca: 'Sony' });
+  await assert.rejects(() => c.handle('a:create', { plataformaId: wii.id, nombre: ' ' }), /nombre/);
+  const disco = await c.handle('a:create', { plataformaId: wii.id, nombre: 'Disco de limpieza', tipo: 'Limpieza' });
+  assert.equal(disco.unidades, 1);
+  await c.handle('a:create', { plataformaId: wii.id, nombre: 'Wii Remote', tipo: 'Mando', unidades: '4', precio: '25,5' });
+  await c.handle('a:create', { plataformaId: ps2.id, nombre: 'Memory Card 8 MB', tipo: 'Memoria' });
+  const enWii = await c.handle('a:byPlat', wii.id);
+  assert.deepEqual(enWii.map(a => a.nombre), ['Disco de limpieza', 'Wii Remote']);
+  assert.equal(enWii[1].unidades, 4); assert.equal(enWii[1].precio, 25.5);
+  const upd = await c.handle('a:update', { id: disco.id, comentarios: 'Con su caja' });
+  assert.equal(upd.comentarios, 'Con su caja'); assert.equal(upd.nombre, 'Disco de limpieza');
+  const plats = await c.handle('p:all');
+  assert.equal(plats.find(p => p.id === wii.id).numAccesorios, 2);
+  assert.equal((await c.handle('data:counts')).accesorios, 3);
+  // Exportar → importar en otra BD conserva los accesorios
+  const dump = await c.handle('data:export');
+  assert.equal(dump.accesorios.length, 3);
+  const c2 = mk({ persist: () => {} });
+  const r = await c2.handle('data:import', dump, { replace: true });
+  assert.equal(r.accesorios, 3);
+  assert.equal((await c2.handle('a:byPlat', wii.id)).length, 2);
+  // Borrar la consola se lleva sus accesorios; borrar uno suelto
+  await c.handle('p:delete', wii.id);
+  assert.equal((await c.handle('a:all')).length, 1);
+  const [mc] = await c.handle('a:all');
+  assert.equal(mc.plataformaNombre, 'PlayStation 2');
+  await c.handle('a:delete', mc.id);
+  assert.equal((await c.handle('data:counts')).accesorios, 0);
+  // Borrar plataformas en «Borrar colección» también vacía accesorios
+  await c2.handle('data:wipe', { plataformas: true });
+  assert.equal((await c2.handle('data:counts')).accesorios, 0);
 });

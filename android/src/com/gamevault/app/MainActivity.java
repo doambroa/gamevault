@@ -83,7 +83,7 @@ public class MainActivity extends Activity {
         s.setLoadWithOverviewMode(true);
         s.setUseWideViewPort(true);
         s.setTextZoom(100);
-        s.setUserAgentString(s.getUserAgentString() + " GameVaultAndroid/1.8");
+        s.setUserAgentString(s.getUserAgentString() + " GameVaultAndroid/1.9");
 
         web.addJavascriptInterface(new Bridge(), "GVAndroid");
         web.setWebViewClient(new Client());
@@ -257,7 +257,7 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
-        public String version() { return "1.8.0"; }
+        public String version() { return "1.9.0"; }
     }
 
     // ── Selector de archivos (<input type="file">) ────────────────────────────
