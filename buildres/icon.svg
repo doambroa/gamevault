@@ -21,6 +21,6 @@
   <rect x="124" y="320" width="150" height="76" rx="14" fill="#d9dce8"/><rect x="124" y="320" width="150" height="20" rx="10" fill="#b4b9cc"/>
   <rect x="146" y="352" width="52" height="10" rx="5" fill="#9aa0b8"/><circle cx="246" cy="370" r="10" fill="#e63946"/>
   <path d="M300 340 h76 a22 22 0 0 1 22 22 v8 a26 26 0 0 1 -26 26 h-6 l-12 -14 h-32 l-12 14 h-6 a26 26 0 0 1 -26 -26 v-8 a22 22 0 0 1 22 -22z" fill="url(#purp)"/>
-  <rect x="312" y="360" width="20" height="6" rx="3" fill="#fff"/><rect x="319" y="353" width="6" height="20" rx="3" fill="#fff"/><circle cx="364" cy="358" r="5" fill="#22d3ee"/><circle cx="376" cy="370" r="5" fill="#facc15"/>
+  <rect x="291" y="361" width="22" height="7" rx="3.5" fill="#fff"/><rect x="298.5" y="353.5" width="7" height="22" rx="3.5" fill="#fff"/><circle cx="372" cy="358" r="6" fill="#22d3ee"/><circle cx="386" cy="371" r="6" fill="#facc15"/>
 </g>
 </svg>

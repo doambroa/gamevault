@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useCollapse, GroupHead, CollapseAll } from '../utils/useCollapse';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Users, Search, Gamepad2, Monitor, Trophy, ArrowLeft, Heart, Lock, BookOpen, Check, X, ArrowLeftRight, Copy, Link2 } from 'lucide-react';
+import { Users, Search, Gamepad2, Monitor, Trophy, ArrowLeft, Heart, Lock, BookOpen, Check, X, ArrowLeftRight, Copy, Link2, Hand } from 'lucide-react';
 import { PageHeader, EmptyState, Btn, SkeletonList } from '../components/ui/index';
 import GameCard from '../components/GameCard';
 import { firstImg, parseImgs, imgSrc } from '../utils/imgSrc';
 import { fmtHours } from '../utils/hltb';
-import { useAccount, fetchUsers, fetchView, fetchPending } from './account';
+import { useAccount, fetchUsers, fetchView, fetchPending, pedirJuego } from './account';
 import { Avatar, LoginForm } from './ui';
 import { indexCreditos, findCredito, estrellas, ESTADO_CF } from './creditos';
 import { normalize } from '../core/text';
@@ -137,6 +138,13 @@ export function PerfilPage() {
       .filter(j => (!plat || String(j.plataformaId) === plat) && (!nq || normalize(j.nombre + ' ' + (j.tituloOriginal || '')).includes(nq)) && (!soloLibres || !j.prestadoA))
       .sort(ORDEN[orden]);
   }, [d, q, plat, orden, soloLibres, platPorId]);
+  const pleg = useCollapse('perfil');
+  const grupos = useMemo(() => {
+    const m = new Map();
+    for (const j of juegos) { if (!m.has(j.plataformaId)) m.set(j.plataformaId, []); m.get(j.plataformaId).push(j); }
+    return [...m.entries()].map(([id, js]) => { const p = platPorId[id]; return { id: String(id), nombre: p?.nombre || 'Sin consola', img: p ? firstImg(p.imagenes) : null, juegos: js }; })
+      .sort((a, b) => b.juegos.length - a.juegos.length);
+  }, [juegos, platPorId]);
 
   if (!me) return <NeedAccount/>;
   if (err) return <div className="page"><button className="gv-back" onClick={() => nav('/comunidad')}><ArrowLeft size={15}/> Comunidad</button><EmptyState icon={<Users size={52}/>} title="No se pudo cargar" description={err}/></div>;
@@ -184,7 +192,16 @@ export function PerfilPage() {
         </div>
         {juegos.length === 0
           ? <EmptyState icon={<Gamepad2 size={52}/>} title={d.juegos.length ? 'Sin resultados' : 'Aún no tiene juegos'} description={d.juegos.length ? 'Prueba con otra búsqueda.' : ''}/>
-          : <div className="gcard-grid">{juegos.map(j => <GameCard key={j.id} juego={j} showPlat={!plat} credito={findCredito(cfIdx, j)} onClick={() => setSel(j)}/>)}</div>}
+          : plat ? <div className="gcard-grid">{juegos.map(j => <GameCard key={j.id} juego={j} credito={findCredito(cfIdx, j)} onClick={() => setSel(j)}/>)}</div>
+          : (<>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: -6 }}><CollapseAll ids={grupos.map(g => g.id)} c={pleg}/></div>
+            {grupos.map(g => (
+              <div key={g.id} style={{ marginBottom: pleg.isClosed(g.id) ? 4 : 24 }}>
+                <GroupHead closed={pleg.isClosed(g.id)} onToggle={() => pleg.toggle(g.id)}>{g.img && <img src={g.img} alt=""/>}{g.nombre} <span className="grp-n">({g.juegos.length})</span></GroupHead>
+                {!pleg.isClosed(g.id) && <div className="gcard-grid">{g.juegos.map(j => <GameCard key={j.id} juego={j} credito={findCredito(cfIdx, j)} onClick={() => setSel(j)}/>)}</div>}
+              </div>
+            ))}
+          </>)}
       </>)}
 
       {tab === 'consolas' && (
@@ -239,6 +256,10 @@ function JuegoLectura({ juego, plat, credito, dueno, onClose }) {
   useEffect(() => { const fn = e => { if (e.key === 'Escape') onClose(); }; document.addEventListener('keydown', fn); return () => document.removeEventListener('keydown', fn); }, [onClose]);
   const fila = (l, val) => (val ? <div className="gv-jl-row"><span>{l}</span><b>{val}</b></div> : null);
   const fechaEs = f => (f ? f.split('-').reverse().join('/') : null);
+  const { me } = useAccount();
+  const [pedido, setPedido] = useState('');
+  const puedePedir = me && dueno.user !== me.user && !String(dueno.user).startsWith('~') && !juego.prestadoA && juego.estado !== 'Digital';
+  const pedir = async () => { setPedido('…'); try { await pedirJuego(dueno.user, juego.id); setPedido('ok'); } catch (e) { setPedido(e.message); } };
   return (
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal-box gv-jl">
@@ -257,7 +278,11 @@ function JuegoLectura({ juego, plat, credito, dueno, onClose }) {
             {juego.prestadoA
               ? <span className="gv-jl-out"><BookOpen size={13}/> Es de {dueno.display}, pero ahora lo tiene <b>{juego.prestadoA}</b>{juego.fechaPrestamo ? ` (desde el ${fechaEs(juego.fechaPrestamo)})` : ''}</span>
               : <span className="gv-jl-in"><Check size={13}/> {dueno.display} lo tiene en casa{juego.estado === 'Digital' ? ' (digital)' : ''}</span>}
+            {puedePedir && (pedido === 'ok'
+              ? <span className="gv-jl-pedido"><Check size={13}/> Pedido</span>
+              : <button className="btn btn-primary btn-sm" style={{ marginLeft: 'auto' }} disabled={pedido === '…'} onClick={pedir}><Hand size={13}/> Pedírselo</button>)}
           </div>
+          {pedido && pedido !== 'ok' && pedido !== '…' && <p className="gv-error">{pedido}</p>}
           {credito && (
             <div className={'jp-cf jp-cf-' + credito.e} style={{ margin: '12px 0 0' }}>
               <div className="jp-cf-head"><Trophy size={15}/><b>{credito.e === 'terminado' ? `${dueno.display} se lo pasó${credito.y ? ' en ' + credito.y : ''}` : ESTADO_CF[credito.e]?.txt}</b></div>

@@ -1,5 +1,19 @@
 # GameVault — Informe de pruebas y errores corregidos
 
+## Versión 2.1 (17-11-2026)
+
+| Batería | Resultado |
+|---|---|
+| Pruebas unitarias | ✅ 45/45 |
+| E2E de escritorio | ✅ 37/37: nuevas — burbujas (la consola con más juegos es mayor) → línea temporal con carátulas → ficha; Barras/Tarjetas; grupos plegables en carátulas y tabla |
+| E2E de comunidad (web + api.php) | ✅ 24/24: nuevas — préstamos en tabla y plegados, enlace a Créditos Finales, PDF en la web, pedir un juego (mensaje, aviso en el menú, «Prestárselo», queda apuntado y quien lo pidió lo ve) |
+| E2E Android / iPhone / accesorios | ✅ 16/16 · 9/9 · 8/8 |
+
+Errores encontrados al probar y corregidos:
+1. Los juegos sin fecha no salían en la línea temporal y no se podían abrir desde ella: ahora tienen su columna «Sin fecha».
+2. Al pasar el ratón por la carátula de arriba de un año se cortaba.
+3. La burbuja de una consola sin foto salía cuadrada.
+
 ## Versión 2.0 (17-11-2026)
 
 | Batería | Resultado |

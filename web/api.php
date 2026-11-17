@@ -75,6 +75,18 @@ function validName($u) { return (bool)preg_match('/^[a-z0-9_-]{3,20}$/', (string
 function collFile($u) { global $DIR; return "$DIR/c_$u.json"; }
 function profiles() { global $DIR; return readJson("$DIR/profiles.json", []); }
 function tokens() { global $DIR; return readJson("$DIR/tokens.json", []); }
+// Peticiones de préstamo (data/requests.json); se guardan con bloqueo para que dos a la vez no se pisen
+function reqs() { global $DIR; return readJson("$DIR/requests.json", []); }
+function reqTx(callable $fn) {
+  global $DIR; ensureDirs(); $f = "$DIR/requests.json";
+  $h = fopen($f, 'c+'); if (!$h) out(['error' => 'No se pudo escribir en data/'], 500);
+  flock($h, LOCK_EX);
+  $l = json_decode(stream_get_contents($h) ?: '[]', true); if (!is_array($l)) $l = [];
+  $fn($l);
+  $l = array_values(array_filter($l, function ($r) { return $r['estado'] === 'pendiente' || ($r['answered'] ?? '') >= date('c', time() - 90 * 86400); }));
+  ftruncate($h, 0); rewind($h); fwrite($h, json_encode($l, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+  fflush($h); flock($h, LOCK_UN); fclose($h);
+}
 function pendings() { global $DIR; return readJson("$DIR/pending.json", []); }
 function isPendingId($u) { return is_string($u) && preg_match('/^~[a-z0-9-]{2,40}$/', $u) && isset(pendings()[$u]); }
 function isAdmin($u) { global $cfg; return $u && in_array($u, (array)($cfg['admins'] ?? ['soiber']), true); }
@@ -385,6 +397,50 @@ switch ($action) {
     $u = strtolower(trim((string)($_GET['u'] ?? $ME)));
     if (!$SHARED) out(['disponible' => false, 'juegos' => []]);
     out(['disponible' => true, 'url' => baseUrl() . '../creditos/', 'juegos' => creditosDe($u) ?: []]);
+
+  /* ---------- peticiones de préstamo: «¿me lo dejas?» ---------- */
+  case 'requests':  // GET → { recibidas: pendientes para mí, enviadas: las mías (últimos 60 días) }
+    $u = requireUser(); $prof = profiles(); $all = users();
+    $pub = function ($n) use ($all, $prof) { return isset($all[$n]) ? publicUser($n, $all[$n], $prof) : ['user' => $n, 'display' => $n]; };
+    $rec = []; $env = []; $lim = date('c', time() - 60 * 86400);
+    foreach (reqs() as $r) {
+      if ($r['to'] === $u && $r['estado'] === 'pendiente') $rec[] = $r + ['quien' => $pub($r['from'])];
+      if ($r['from'] === $u && ($r['estado'] === 'pendiente' || ($r['answered'] ?? '') >= $lim)) $env[] = $r + ['quien' => $pub($r['to'])];
+    }
+    out(['recibidas' => array_reverse($rec), 'enviadas' => array_reverse($env)]);
+
+  case 'req_create': // POST {owner, id, nombre, msg}
+    $u = requireUser(); $b = body();
+    $to = strtolower((string)($b['owner'] ?? '')); $jid = (int)($b['id'] ?? 0);
+    if ($to === $u) out(['error' => 'Ese juego ya es tuyo'], 400);
+    if (isPendingId($to)) out(['error' => 'Todavía no tiene cuenta en GameVault: pídeselo por otro lado'], 400);
+    if (!isset(users()[$to])) out(['error' => 'Esa persona no existe'], 404);
+    $j = null; foreach ((readJson(collFile($to), null)['data']['juegos'] ?? []) as $x) if ((int)($x['id'] ?? 0) === $jid) $j = $x;
+    if (!$j) out(['error' => 'Ese juego ya no está en su colección'], 404);
+    if (!empty($j['prestadoA'])) out(['error' => 'Ahora mismo lo tiene otra persona'], 409);
+    $res = null;
+    reqTx(function (&$l) use ($u, $to, $jid, $j, $b, &$res) {
+      foreach ($l as $r) if ($r['from'] === $u && $r['to'] === $to && $r['juegoId'] === $jid && $r['estado'] === 'pendiente') { $res = $r; return; }
+      $res = ['id' => bin2hex(random_bytes(6)), 'from' => $u, 'to' => $to, 'juegoId' => $jid, 'nombre' => (string)($j['nombre'] ?? ''),
+        'msg' => mb_substr(trim((string)($b['msg'] ?? '')), 0, 300), 'created' => date('c'), 'estado' => 'pendiente'];
+      $l[] = $res;
+    });
+    out($res);
+
+  case 'req_answer': // POST {id, accept} — solo el dueño del juego
+  case 'req_cancel': // POST {id} — solo quien lo pidió
+    $u = requireUser(); $b = body(); $id = (string)($b['id'] ?? ''); $res = null; $err = null;
+    reqTx(function (&$l) use ($u, $id, $b, $action, &$res, &$err) {
+      foreach ($l as $k => $r) if ($r['id'] === $id) {
+        if ($action === 'req_answer' && $r['to'] !== $u) { $err = 'Esa petición no es para ti'; return; }
+        if ($action === 'req_cancel' && $r['from'] !== $u) { $err = 'Esa petición no es tuya'; return; }
+        $l[$k]['estado'] = $action === 'req_cancel' ? 'cancelada' : (!empty($b['accept']) ? 'aceptada' : 'rechazada');
+        $l[$k]['answered'] = date('c'); $res = $l[$k]; return;
+      }
+      $err = 'Esa petición ya no existe';
+    });
+    if ($err) out(['error' => $err], 404);
+    out($res);
 
   case 'pending':   // administradores: perfiles por reclamar con su enlace para mandárselo a cada uno
     $u = requireUser();

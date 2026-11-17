@@ -129,6 +129,8 @@ function createWindow() {
       preload: path.join(__dirname,'preload.js'),
     },
   });
+  // Enlaces externos (Créditos Finales, RAWG…) en el navegador del sistema, no en otra ventana de la app
+  win.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/i.test(url)) shell.openExternal(url); return { action: 'deny' }; });
   if (DEV) {
     win.loadURL('http://localhost:3000');
     win.webContents.openDevTools();
@@ -270,7 +272,7 @@ async function imageToDataUri(src) {
 }
 
 async function writeCatalogPdf(filePath) {
-  const { buildCatalogHtml } = require('./pdfCatalog');
+  const { buildCatalogHtml } = require('../src/core/pdfCatalog');
   const plataformas = all('SELECT * FROM plataformas ORDER BY nombre COLLATE NOCASE');
   const juegos = all('SELECT * FROM juegos');
   // Precargar todas las imágenes (de 6 en 6)

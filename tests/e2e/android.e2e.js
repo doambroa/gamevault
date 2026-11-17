@@ -19,7 +19,7 @@ async function check(name, fn) {
   step++;
   try { await fn(); results.push(`✔ ${step}. ${name}`); }
   catch (e) {
-    results.push(`✘ ${step}. ${name}\n     → ${e.message.split('\n')[0]}`);
+    results.push(`✘ ${step}. ${name}\n     → ${e.message.split('\n').slice(0, 8).join('\n       ')}`);
     try { await CUR.page.screenshot({ path: path.join(OUT, `FAIL-${step}.png`) }); await CUR.page.keyboard.press('Escape'); } catch {}
   }
 }
@@ -169,7 +169,7 @@ const unb64 = s => Buffer.from(s, 'base64').toString('utf8');
     await modal.getByText('¡Importación completada!').waitFor({ timeout: 20000 });
     await modal.getByRole('button', { name: /Ver colección/ }).click();
     await page.getByPlaceholder('Nombre…').fill('columns');
-    const sec = await page.locator('.section-title').first().innerText();
+    const sec = await page.locator('.grp-head').first().innerText();
     assert(/MEGA DRIVE|Mega Drive/i.test(sec), 'emparejado con Mega Drive: ' + sec);
     await page.getByPlaceholder('Nombre…').fill('');
   });
@@ -209,8 +209,9 @@ const unb64 = s => Buffer.from(s, 'base64').toString('utf8');
     await page.locator('.plat-card').first().click();
     await page.getByText('Unidades en tu colección').waitFor(); await shot('plataforma-detalle');
     await page.locator('.nav-more').click(); await page.locator('.sidebar-mob', { hasText: 'Estadísticas' }).click();
-    await page.locator('.st-bar').first().waitFor(); await noHScroll(); await shot('stats');
-    await page.locator('.st-bar').first().click(); await page.locator('.st-sel .gcard').first().waitFor(); await noHScroll();
+    await page.locator('.bubble-wrap').first().waitFor(); await noHScroll(); await shot('stats');
+    await page.locator('.bubble-wrap').first().click(); await page.locator('.tl2-game').first().waitFor(); await noHScroll();
+    await page.locator('.st-year:not(.vacio)').first().click(); await page.locator('.st-sel .gcard').first().waitFor(); await noHScroll();
   });
   await check('PDF en móvil: mensaje claro (sólo escritorio)', async () => {
     await page.locator('.nav-item', { hasText: 'Inicio' }).click();
@@ -228,7 +229,7 @@ const unb64 = s => Buffer.from(s, 'base64').toString('utf8');
     await page.locator('.sidebar-scrim').click().catch(() => {});
   });
   await check('Móvil: borrar toda la colección y que siga borrada al recargar', async () => {
-    await page.locator('.nav-more').click();
+    if (!(await page.locator('.sidebar-footer.open').count())) await page.locator('.nav-more').click();
     await page.getByRole('button', { name: /Ajustes/ }).click();
     await page.getByRole('button', { name: /Borrar toda mi colección/ }).click();
     const modal = page.locator('.modal-box');

@@ -1,4 +1,4 @@
-# 🎮 GameVault 2.0 — Guía de uso
+# 🎮 GameVault 2.1 — Guía de uso
 
 Tu colección de videojuegos y consolas: duración (HowLongToBeat), ventas, estadísticas y catálogo en PDF. Para Windows, Android e iPhone.
 
@@ -33,6 +33,16 @@ Si bajas el proyecto con *Code → Download ZIP* (o `git clone`), descomprímelo
 Las bases de datos de versiones anteriores se actualizan solas al abrir la 1.8 (se añaden los campos nuevos sin perder nada).
 
 ---
+
+## Novedades de la 2.1
+
+- **Estadísticas**: vuelven las burbujas por consola (su tamaño depende de los juegos; el aro verde es la parte terminada) con el selector Burbujas / Barras / Tarjetas. Al pulsar una consola se abre su **línea temporal**: carátulas sobre sus años (con los años vacíos), se desliza con el dedo o la rueda, al pasar por encima se ve título y fecha y al pulsar se abre la ficha (editable). Los juegos sin fecha salen al final. Debajo siguen «Año a año», duración y géneros.
+- **Listados plegables**: en Juegos, Préstamos y la colección de otra persona cada consola se pliega con un clic (o «Plegar todo / Desplegar todo») y queda solo su línea. Vale igual para carátulas y tabla, y se recuerda.
+- **Pedir un juego**: en la Zona de préstamos, junto a cada persona que tiene el juego en casa, botón **Pedir** (con un mensaje opcional); también en la ficha de un juego ajeno. Al dueño le sale «Te piden» arriba y un aviso en el menú; con «Prestárselo» queda apuntado en su colección. Quien lo pidió ve si se lo dejan.
+- **Préstamos en tabla**: además de las fichas.
+- **Créditos Finales** en el menú (abre la web).
+- **PDF en la web, iPhone y Android**: «Exportar PDF» abre el catálogo y el cuadro de imprimir, donde se elige «Guardar como PDF».
+- Icono «Vitrina» con la cruceta del mando en su sitio, y propuestas nuevas mitad cartucho de 64, mitad disco en `buildres/propuestas-2/`.
 
 ## Novedades de la 2.0
 

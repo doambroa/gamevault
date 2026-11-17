@@ -374,3 +374,37 @@ export async function claimProfile(id, code = '') {
   window.location.reload();
   return r;
 }
+
+// ── Peticiones de préstamo («¿me lo dejas?») ──
+let reqState = { recibidas: [], enviadas: [], cargado: false };
+const reqSubs = new Set();
+const setReq = v => { reqState = { ...v, cargado: true }; reqSubs.forEach(f => f()); };
+export async function refreshRequests() {
+  if (!state.me) return reqState;
+  try { setReq(await call('requests')); } catch {}
+  return reqState;
+}
+export function useRequests() {
+  return useSyncExternalStore(fn => { reqSubs.add(fn); return () => reqSubs.delete(fn); }, () => reqState);
+}
+export async function pedirJuego(owner, id, msg = '') {
+  const r = await call('req_create', { method: 'POST', body: { owner, id, msg } });
+  refreshRequests(); return r;
+}
+export async function cancelarPeticion(id) { await call('req_cancel', { method: 'POST', body: { id } }); return refreshRequests(); }
+/** El dueño contesta. Si acepta, el juego queda prestado a quien lo pidió (en su colección y en la cuenta). */
+export async function contestarPeticion(r, accept) {
+  if (accept) {
+    const hoy = new Date().toISOString().slice(0, 10);
+    await api.juegos.prestar({ id: r.juegoId, prestadoA: r.quien?.display || r.from, prestadoUsuario: r.from, fechaPrestamo: hoy });
+    try { await pushNow(); } catch {}
+  }
+  await call('req_answer', { method: 'POST', body: { id: r.id, accept } });
+  return refreshRequests();
+}
+// Se miran al entrar, cada 2 minutos y al volver a la ventana
+if (typeof window !== 'undefined') {
+  setInterval(() => { if (state.me && document.visibilityState === 'visible') refreshRequests(); }, 120000);
+  window.addEventListener('focus', () => { if (state.me) refreshRequests(); });
+  subs.add(() => { if (state.me && !reqState.cargado) refreshRequests(); });
+}

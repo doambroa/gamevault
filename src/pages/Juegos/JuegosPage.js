@@ -1,3 +1,4 @@
+import { useCollapse, GroupHead, CollapseAll } from '../../utils/useCollapse';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { imgSrc, parseImgs } from '../../utils/imgSrc';
 import { Plus, Gamepad2, Search, Edit2, Trash2, Download, Loader, Check, BookOpen, Upload, Clock, Layers, List, LayoutGrid, Rows3, ArrowUpDown, ChevronDown } from 'lucide-react';
@@ -71,7 +72,8 @@ export default function JuegosPage() {
   const visibles = React.useMemo(() => (!filtroCF || !cf.disponible ? juegos
     : juegos.filter(j => (findCredito(cf.idx, j)?.e === 'terminado') === (filtroCF === 'si'))), [juegos, filtroCF, cf]);
   const { sorted, sortKey, sortDir, toggle, setSort } = useSort(visibles, 'nombre');
-  const [modo, setModoState] = useState(loadModo);         // cuadrícula de carátulas | tabla
+  const [modo, setModoState] = useState(loadModo);
+  const pleg = useCollapse('juegos');         // cuadrícula de carátulas | tabla
   const setModo = m => { setModoState(m); try { localStorage.setItem(MODO_KEY, m); } catch {} };
   const [masOpen, setMasOpen] = useState(false);
   const thP = { sortKey, sortDir, onToggle: toggle };
@@ -330,6 +332,7 @@ export default function JuegosPage() {
             <Rows3 size={13}/> Tabla
           </button>
         </div>
+        {vista === 'plataforma' && <CollapseAll ids={Object.keys(grouped)} c={pleg}/>}
         {modo === 'cuadricula' && (
           <div className="ordenar">
             <ArrowUpDown size={13}/>
@@ -358,13 +361,13 @@ export default function JuegosPage() {
           action={!hasF && <Btn onClick={() => setShowForm(true)}><Plus size={16}/> Añadir</Btn>}/>
       ) : (
         (vista === 'todos' ? [['__todos__', sorted]] : Object.entries(grouped)).map(([plat, items]) => (
-          <div key={plat} style={{marginBottom:28}}>
+          <div key={plat} style={{marginBottom: vista !== 'todos' && pleg.isClosed(plat) ? 6 : 28}}>
             {vista !== 'todos' && (
-              <p className="section-title">
-                {plat} <span style={{color:'var(--text-3)',fontWeight:400}}>({items.length})</span>
-              </p>
+              <GroupHead closed={pleg.isClosed(plat)} onToggle={() => pleg.toggle(plat)}>
+                {plat} <span className="grp-n">({items.length})</span>
+              </GroupHead>
             )}
-            {modo === 'cuadricula' ? (
+            {vista !== 'todos' && pleg.isClosed(plat) ? null : modo === 'cuadricula' ? (
               <div className="gcard-grid">
                 {items.map(j => (
                   <GameCard key={j.id} juego={j} showPlat={vista === 'todos'} credito={findCredito(cf.idx, j)}

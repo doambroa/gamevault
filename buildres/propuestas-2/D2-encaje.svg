@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs>
+  <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b2140"/><stop offset="1" stop-color="#08080f"/></linearGradient>
+  <linearGradient id="frame" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e63946"/><stop offset=".55" stop-color="#7c3aed"/><stop offset="1" stop-color="#22d3ee"/></linearGradient>
+  <linearGradient id="red" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f05563"/><stop offset="1" stop-color="#c22636"/></linearGradient>
+  <linearGradient id="cyan" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4fe0f5"/><stop offset="1" stop-color="#0e98b3"/></linearGradient>
+  <linearGradient id="purp" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8b5cf6"/><stop offset="1" stop-color="#4c1d95"/></linearGradient>
+  <filter id="sh" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000" flood-opacity=".55"/></filter>
+</defs>
+<rect x="16" y="16" width="480" height="480" rx="112" fill="url(#tile)"/>
+<rect x="21" y="21" width="470" height="470" rx="107" fill="none" stroke="url(#frame)" stroke-width="10"/>
+<defs>
+  <linearGradient id="gris" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a9adbb"/><stop offset="1" stop-color="#6c7182"/></linearGradient>
+  <linearGradient id="etq" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e63946"/><stop offset=".5" stop-color="#7c3aed"/><stop offset="1" stop-color="#22d3ee"/></linearGradient>
+  <radialGradient id="plata" cx=".5" cy=".5" r=".5"><stop offset=".15" stop-color="#f4f6fb"/><stop offset=".7" stop-color="#cfd4e2"/><stop offset="1" stop-color="#9aa2b8"/></radialGradient>
+  <linearGradient id="iris" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee" stop-opacity=".75"/><stop offset=".35" stop-color="#a78bfa" stop-opacity=".55"/><stop offset=".6" stop-color="#f472b6" stop-opacity=".5"/><stop offset=".85" stop-color="#facc15" stop-opacity=".6"/><stop offset="1" stop-color="#22d3ee" stop-opacity=".4"/></linearGradient>
+  <clipPath id="izq"><rect x="0" y="0" width="256" height="512"/></clipPath>
+  <clipPath id="der"><rect x="256" y="0" width="256" height="512"/></clipPath>
+</defs>
+<g filter="url(#sh)">
+  <g transform="translate(70 -36) scale(.84)"><circle cx="256" cy="256" r="176" fill="url(#plata)"/><circle cx="256" cy="256" r="176" fill="url(#iris)"/>
+  <g fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="2"><circle cx="256" cy="256" r="150"/><circle cx="256" cy="256" r="122"/><circle cx="256" cy="256" r="94"/></g>
+  <circle cx="256" cy="256" r="56" fill="#dfe3ee" stroke="#9aa2b8" stroke-width="3"/><circle cx="256" cy="256" r="22" fill="#0b0d1a"/></g>
+  <g transform="translate(-30 92) rotate(-10 256 256) scale(.7)"><path d="M126 112 h260 a26 26 0 0 1 26 26 v232 a14 14 0 0 1 -14 14 h-18 v26 a10 10 0 0 1 -10 10 h-228 a10 10 0 0 1 -10 -10 v-26 h-18 a14 14 0 0 1 -14 -14 v-232 a26 26 0 0 1 26 -26z" fill="url(#gris)"/>
+  <g stroke="#5a5e6d" stroke-width="7" stroke-linecap="round"><path d="M128 140 h46"/><path d="M128 160 h46"/><path d="M128 180 h46"/><path d="M338 140 h46"/><path d="M338 160 h46"/><path d="M338 180 h46"/></g>
+  <rect x="150" y="204" width="212" height="150" rx="12" fill="#f4f5fa"/><rect x="162" y="216" width="188" height="96" rx="8" fill="url(#etq)"/>
+  <rect x="176" y="324" width="110" height="10" rx="5" fill="#9aa0b8"/></g>
+</g>
+</svg>

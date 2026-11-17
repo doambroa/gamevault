@@ -149,6 +149,23 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
     await page.getByRole('button', { name: /Tabla/ }).click();
     await page.locator('table.table').first().waitFor();
   });
+  await check('Juegos: los grupos por consola se pliegan (uno o todos) y vale para carátulas y tabla', async () => {
+    await page.evaluate(() => localStorage.removeItem('gv-plegado-juegos'));
+    await page.getByRole('button', { name: /Por plataforma/ }).click();
+    await page.getByRole('button', { name: /Carátulas/ }).click();
+    await page.getByRole('button', { name: /Plegar todo/ }).click();
+    assert(await page.locator('.gcard').count() === 0, 'siguen viéndose carátulas');
+    assert(await page.locator('.grp-head.closed').count() > 1, 'no hay títulos plegados');
+    await shot('juegos-plegados');
+    await page.getByRole('button', { name: /Tabla/ }).click();
+    assert(await page.locator('table.table').count() === 0, 'la tabla no respeta el plegado');
+    await page.locator('.grp-head', { hasText: 'Nintendo 64' }).click();
+    await page.locator('table.table').first().waitFor();
+    assert(await page.locator('table.table').count() === 1, 'solo debe abrirse Nintendo 64');
+    await page.getByRole('button', { name: /Plegar todo/ }).click();
+    await page.getByRole('button', { name: /Desplegar todo/ }).click();
+    assert(await page.locator('table.table').count() > 1, 'no se desplegó todo');
+  });
   await check('Juegos → Nuevo juego "Mario Kart 8 Deluxe" en Switch', async () => {
     await page.getByRole('button', { name: 'Juegos', exact: true }).click();
     await page.getByRole('button', { name: /Nuevo juego/ }).click();
@@ -250,18 +267,37 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
   });
 
   // ── Estadísticas ──────────────────────────────────────────────────────────
-  await check('Estadísticas: cifras, barras por consola y año a año; al pulsar salen las carátulas', async () => {
+  await check('Estadísticas: burbujas por consola (tamaño según juegos) → su línea temporal con carátulas', async () => {
     await page.getByRole('button', { name: 'Estadísticas' }).click();
     await page.locator('.st-kpi').first().waitFor();
-    await page.locator('.st-bar', { hasText: 'Nintendo 64' }).first().click();
-    await page.locator('.st-sel .gcard').first().waitFor();
-    const n = await page.locator('.st-sel .gcard').count();
-    assert(n > 5, 'carátulas: ' + n);
-    await page.locator('.st-year:not(.vacio)').first().waitFor();
+    await page.getByRole('button', { name: /Burbujas/ }).click();
+    const b64 = page.locator('.bubble-wrap', { hasText: 'Nintendo 64' });
+    const bPs = page.locator('.bubble-wrap').last();
+    const w1 = await b64.locator('.bubble').evaluate(e => e.getBoundingClientRect().width);
+    const w2 = await bPs.locator('.bubble').evaluate(e => e.getBoundingClientRect().width);
+    assert(w1 > w2, `la burbuja con más juegos debe ser mayor (${w1} vs ${w2})`);
+    await shot('estadisticas-burbujas');
+    await b64.click();
+    await page.locator('.tl2-game').first().waitFor();
+    const n = await page.locator('.tl2-game').count();
+    assert(n > 5, 'carátulas en la línea temporal: ' + n);
+    await page.locator('.tl2-game').first().hover();
+    await page.locator('.tl2-info b').first().waitFor();
+    await shot('linea-temporal');
+    await page.locator('.tl2-game').first().click();
+    await page.locator('.jp-panel').waitFor();
+    await page.locator('.jp-panel .jp-close').click();
+  });
+  await check('Estadísticas: vistas Barras y Tarjetas, y «Año a año» abre las carátulas debajo', async () => {
+    await page.getByRole('button', { name: /Barras/ }).click();
+    await page.locator('.st-bar', { hasText: 'Nintendo 64' }).first().waitFor();
+    await page.getByRole('button', { name: /Tarjetas/ }).click();
+    await page.locator('.stat-tile').first().waitFor();
+    await page.getByRole('button', { name: /Burbujas/ }).click();
     assert(await page.locator('.st-year').count() >= 10, 'años');
-    await shot('estadisticas');
     await page.locator('.st-year:not(.vacio)').last().click();
     await page.locator('.st-sel h2').getByText(/salieron/).waitFor();
+    assert(await page.locator('.st-sel .gcard').count() > 0, 'sin carátulas');
   });
 
   // ── v1.5: título en castellano, vistas, orden por duración, zoom, importar duraciones ──
@@ -336,8 +372,8 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
   });
   await check('Estadísticas → ficha del juego y editar: el cambio se ve al momento', async () => {
     await page.getByRole('button', { name: 'Estadísticas' }).click();
-    await page.locator('.st-bar', { hasText: 'Switch' }).first().click();
-    await page.locator('.st-sel .gcard', { hasText: 'Booster Course' }).click();
+    await page.locator('.bubble-wrap', { hasText: 'Switch' }).first().click();
+    await page.locator('.tl2-game[aria-label*="Booster Course"]').click();
     const panel = page.locator('.jp-panel');
     await panel.getByText('71,5 M').waitFor({ timeout: 10000 });
     await panel.getByRole('button', { name: /Editar/ }).click();
@@ -345,7 +381,7 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
     await modal.getByRole('button', { name: '6', exact: true }).click();
     await modal.getByRole('button', { name: /Guardar cambios/ }).click();
     await panel.getByText('6/10').waitFor();
-    await page.locator('.st-sel .gcard', { hasText: 'Booster Course' }).locator('.gcard-nota', { hasText: '6' }).waitFor();
+    await page.locator('.tl2-game.on[aria-label*="Booster Course"]').waitFor();
     await shot('estadisticas-panel');
     await panel.locator('.jp-close').click();
   });

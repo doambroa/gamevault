@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Monitor, Gamepad2, Heart, BarChart2, Upload, Download, Settings, FolderOpen, MoreHorizontal, Users, ArrowLeftRight } from 'lucide-react';
+import { LayoutDashboard, Monitor, Gamepad2, Heart, BarChart2, Upload, Download, Settings, FolderOpen, MoreHorizontal, Users, ArrowLeftRight, Trophy, ExternalLink } from 'lucide-react';
 import { AccountButton, AccountModal } from '../../community/ui';
-import { useAccount } from '../../community/account';
+import { useAccount, useRequests, creditosUrl } from '../../community/account';
 import SettingsModal from '../ui/index';
 import { Modal, Btn } from '../ui/index';
 import WipeModal from '../ui/WipeModal';
@@ -33,11 +33,15 @@ export default function Sidebar() {
   const [showAccount, setShowAccount]   = useState(false);
   const acc = useAccount();
   const conComunidad = acc.ready && acc.available;
+  const reqs = useRequests();
+  const nPet = acc.me ? (reqs.recibidas || []).length : 0;
+  const cfUrl = conComunidad && acc.me?.creditos !== false ? creditosUrl() : null;
   const navItem = ({ to, icon: Icon, label, movil }, extra = '') => (
     <button key={to + extra}
       className={(extra ? 'sidebar-action sidebar-mob' : 'nav-item' + (movil ? '' : ' nav-desk')) + (loc.pathname.startsWith(to) ? ' active' : '')}
       onClick={() => { nav(to); setMoreOpen(false); }}>
       <Icon size={extra ? 14 : 18}/><span>{label}</span>
+      {to === '/prestamos' && nPet > 0 && <b className="nav-badge" title={`${nPet} petición${nPet !== 1 ? 'es' : ''} de préstamo`}>{nPet}</b>}
     </button>
   );
 
@@ -74,6 +78,8 @@ export default function Sidebar() {
           {NAV.map(i => navItem(i))}
           {conComunidad && <div className="nav-sep">Comunidad</div>}
           {conComunidad && NAV_COMUNIDAD.map(i => navItem(i))}
+          {cfUrl && <a className="nav-item nav-desk nav-ext" href={cfUrl} target="_blank" rel="noreferrer" title="Abrir Créditos Finales (los juegos que te pasas cada año)">
+            <Trophy size={18}/><span>Créditos Finales</span><ExternalLink size={12} className="nav-ext-i"/></a>}
           <button className={'nav-item nav-more' + (moreOpen ? ' active' : '')} onClick={() => setMoreOpen(o => !o)}>
             <MoreHorizontal size={18}/><span>Más</span>
           </button>
@@ -82,6 +88,7 @@ export default function Sidebar() {
         <div className={'sidebar-footer' + (moreOpen ? ' open' : '')} onClick={() => setMoreOpen(false)}>
           {conComunidad && <button className="sidebar-action sidebar-mob" onClick={() => setShowAccount(true)}><Users size={14}/> {acc.me ? 'Mi cuenta' : 'Iniciar sesión'}</button>}
           {[...NAV, ...(conComunidad ? NAV_COMUNIDAD : [])].filter(i => !i.movil).map(i => navItem(i, 'mob'))}
+          {cfUrl && <a className="sidebar-action sidebar-mob" href={cfUrl} target="_blank" rel="noreferrer"><Trophy size={14}/> Créditos Finales <ExternalLink size={11}/></a>}
           <button className="sidebar-action" onClick={doExport}>
             <Upload size={14}/> Exportar JSON
           </button>

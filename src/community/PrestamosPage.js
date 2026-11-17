@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, ArrowRight, ArrowLeftRight, Gamepad2, Check, RefreshCw, ChevronDown, Undo2, Users } from 'lucide-react';
+import { Search, ArrowRight, ArrowLeftRight, Gamepad2, Check, RefreshCw, ChevronDown, Undo2, Users, Hand, X, LayoutGrid, Rows3, Inbox } from 'lucide-react';
+import { useCollapse, GroupHead, CollapseAll } from '../utils/useCollapse';
 import { PageHeader, EmptyState, SkeletonList, Btn } from '../components/ui/index';
 import { imgSrc } from '../utils/imgSrc';
 import { canon, normalize } from '../core/text';
 import { claveConsola, imagenPorNombre } from '../data/consolas';
-import { useAccount, fetchLoans, pushNow } from './account';
+import { useAccount, fetchLoans, pushNow, useRequests, refreshRequests, pedirJuego, cancelarPeticion, contestarPeticion } from './account';
 import { Avatar, PrestarModal } from './ui';
 import { NeedAccount } from './ComunidadPage';
 
@@ -51,8 +52,13 @@ export default function PrestamosPage() {
   const [abiertas, setAbiertas] = useState({});         // consolas desplegadas enteras
   const [prestar, setPrestar] = useState(null);         // juego mío (de la BD local)
   const [busy, setBusy] = useState(false);
+  const [modo, setModoSt] = useState(() => { try { return localStorage.getItem('gv-prestamos-modo') || 'cuadricula'; } catch { return 'cuadricula'; } });
+  const setModo = m => { setModoSt(m); try { localStorage.setItem('gv-prestamos-modo', m); } catch {} };
+  const pleg = useCollapse('prestamos');
+  const reqs = useRequests();
+  const [pedir, setPedir] = useState(null);            // { c, J } copia de otra persona que quiero pedir
 
-  const load = useCallback(() => fetchLoans().then(g => { setGente(g); setErr(''); }).catch(e => setErr(e.message)), []);
+  const load = useCallback(() => { refreshRequests(); return fetchLoans().then(g => { setGente(g); setErr(''); }).catch(e => setErr(e.message)); }, []);
   useEffect(() => { if (me) load(); }, [me, load]);
 
   const plats = useMemo(() => agrupar(gente || []), [gente]);
@@ -80,6 +86,14 @@ export default function PrestamosPage() {
   const trasCambio = async () => { setBusy(true); try { await pushNow(); } catch {} await load(); setBusy(false); };
   const abrirPrestar = async c => { const j = await api.juegos.getById(c.id); if (j) setPrestar(j); };
   const devolver = async c => { await api.juegos.devolver(c.id); trasCambio(); };
+  // Lo que ya he pedido y está sin contestar: dueño|idJuego → petición
+  const pedidas = Object.fromEntries((reqs.enviadas || []).filter(r => r.estado === 'pendiente').map(r => [r.to + '|' + r.juegoId, r]));
+  const contestar = async (r, ok) => { setBusy(true); try { await contestarPeticion(r, ok); } catch (e) { alert(e.message); } await load(); setBusy(false); };
+  const accionesCopia = (c, J) => ({
+    mia: c.dueno.user === me.user, pedida: pedidas[c.dueno.user + '|' + c.id],
+    onPrestar: () => abrirPrestar(c), onDevolver: () => devolver(c), onPerfil: u => nav('/comunidad/' + u),
+    onPedir: () => setPedir({ c, J }), onCancelar: r => cancelarPeticion(r.id),
+  });
 
   const nq = normalize(q);
   const pasa = J => {
@@ -105,6 +119,8 @@ export default function PrestamosPage() {
       {err ? <p className="gv-error">{err}</p> : !gente ? <SkeletonList n={5}/> : total === 0 ? (
         <EmptyState icon={<ArrowLeftRight size={52}/>} title="Todavía no hay juegos" description="En cuanto alguien con cuenta tenga juegos en su colección aparecerán aquí."/>
       ) : (<>
+        <Peticiones reqs={reqs} busy={busy} onContestar={contestar} onCancelar={r => cancelarPeticion(r.id)}/>
+
         {/* Mis préstamos, de un vistazo */}
         {(dejados.length > 0 || recibidos.length > 0) && (
           <div className="lz-mios">
@@ -171,6 +187,13 @@ export default function PrestamosPage() {
             ))}
           </div>
         </div>
+        <div className="lz-filtros">
+          <div className="seg" role="group" aria-label="Forma de verlos">
+            <button className={'seg-btn' + (modo === 'cuadricula' ? ' active' : '')} onClick={() => setModo('cuadricula')}><LayoutGrid size={13}/> Fichas</button>
+            <button className={'seg-btn' + (modo === 'tabla' ? ' active' : '')} onClick={() => setModo('tabla')}><Rows3 size={13}/> Tabla</button>
+          </div>
+          <CollapseAll ids={visibles.map(P => P.clave)} c={pleg}/>
+        </div>
         <div className="lz-chips">
           <button className={'lz-chip' + (!plat ? ' on' : '')} onClick={() => setPlat('')}>Todas <span>{total}</span></button>
           {plats.map(P => (
@@ -182,28 +205,47 @@ export default function PrestamosPage() {
 
         {visibles.length === 0 && <EmptyState icon={<Gamepad2 size={52}/>} title="Nada por aquí" description="Prueba con otra búsqueda u otro filtro."/>}
         {visibles.map(P => {
-          const entera = acotado || abiertas[P.clave] || P.lista.length <= 8;
+          const cerrada = pleg.isClosed(P.clave);
+          const entera = acotado || abiertas[P.clave] || P.lista.length <= 8 || modo === 'tabla';
           const lista = entera ? P.lista : P.lista.slice(0, 6);
           return (
-            <section key={P.clave} className="lz-plat">
-              <h2 className="lz-plat-h">{P.img && <img src={P.img} alt=""/>}{P.nombre}<span>{P.lista.length} juego{P.lista.length !== 1 ? 's' : ''}</span></h2>
-              <div className="lz-lista">
-                {lista.map(J => (
-                  <div key={J.clave} className="lz-juego">
-                    <Cover img={J.img} grande/>
-                    <div className="lz-juego-info">
-                      <div className="lz-juego-n">{J.nombre}</div>
-                      <div className="lz-copias">
-                        {J.copias.map((c, i) => (
-                          <Copia key={i} c={c} mia={c.dueno.user === me.user} porUsuario={porUsuario} busy={busy}
-                            onPrestar={() => abrirPrestar(c)} onDevolver={() => devolver(c)} onPerfil={u => nav('/comunidad/' + u)}/>
-                        ))}
+            <section key={P.clave} className={'lz-plat' + (cerrada ? ' cerrada' : '')}>
+              <GroupHead closed={cerrada} onToggle={() => pleg.toggle(P.clave)} className="lz-plat-h">
+                {P.img && <img src={P.img} alt=""/>}{P.nombre}<span className="grp-n">{P.lista.length} juego{P.lista.length !== 1 ? 's' : ''}</span>
+              </GroupHead>
+              {!cerrada && (modo === 'tabla' ? (
+                <div className="table-wrap">
+                  <table className="table lz-tabla">
+                    <thead><tr><th style={{ width: 64 }}></th><th>Juego</th><th>Quién lo tiene</th></tr></thead>
+                    <tbody>
+                      {lista.map(J => (
+                        <tr key={J.clave}>
+                          <td><Cover img={J.img}/></td>
+                          <td className="lz-tabla-n">{J.nombre}<small>{J.copias.length} copia{J.copias.length !== 1 ? 's' : ''}</small></td>
+                          <td><div className="lz-copias lz-copias-fila">
+                            {J.copias.map((c, i) => <Copia key={i} c={c} porUsuario={porUsuario} busy={busy} {...accionesCopia(c, J)}/>)}
+                          </div></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (<>
+                <div className="lz-lista">
+                  {lista.map(J => (
+                    <div key={J.clave} className="lz-juego">
+                      <Cover img={J.img} grande/>
+                      <div className="lz-juego-info">
+                        <div className="lz-juego-n">{J.nombre}</div>
+                        <div className="lz-copias">
+                          {J.copias.map((c, i) => <Copia key={i} c={c} porUsuario={porUsuario} busy={busy} {...accionesCopia(c, J)}/>)}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-              {!entera && <button className="lz-mas" onClick={() => setAbiertas(a => ({ ...a, [P.clave]: true }))}><ChevronDown size={14}/> Ver los {P.lista.length} juegos de {P.nombre}</button>}
+                  ))}
+                </div>
+                {!entera && <button className="lz-mas" onClick={() => setAbiertas(a => ({ ...a, [P.clave]: true }))}><ChevronDown size={14}/> Ver los {P.lista.length} juegos de {P.nombre}</button>}
+              </>))}
             </section>
           );
         })}
@@ -211,6 +253,7 @@ export default function PrestamosPage() {
       </>)}
 
       <PrestarModal open={!!prestar} juego={prestar} onClose={() => setPrestar(null)} onSaved={trasCambio}/>
+      <PedirModal p={pedir} onClose={() => setPedir(null)}/>
     </div>
   );
 }
@@ -228,9 +271,10 @@ function Quien({ c, porUsuario }) {
 }
 
 /* Una copia = la ficha de su dueño. Verde: en casa. Naranja: «dueño → quien lo tiene».
- * Las mías se pueden pulsar para prestar o marcar la devolución. */
-function Copia({ c, mia, porUsuario, onPrestar, onDevolver, onPerfil, busy }) {
+ * Las mías se pueden prestar o marcar la devolución; las de otros (en casa) se pueden pedir. */
+function Copia({ c, mia, pedida, porUsuario, onPrestar, onDevolver, onPerfil, onPedir, onCancelar, busy }) {
   const base = 'lz-copia' + (c.a ? ' fuera' : c.digital ? ' digital' : ' libre') + (mia ? ' mia' : '');
+  const sinCuenta = String(c.dueno.user).startsWith('~');
   return (
     <div className={base}>
       <button className="lz-copia-dueno" onClick={() => onPerfil(c.dueno.user)} title={`Ver la colección de ${c.dueno.display}`}>
@@ -240,9 +284,79 @@ function Copia({ c, mia, porUsuario, onPrestar, onDevolver, onPerfil, busy }) {
       {c.a
         ? <span className="lz-copia-st"><ArrowRight size={12}/> <Quien c={c} porUsuario={porUsuario}/></span>
         : <span className="lz-copia-st">{c.digital ? 'digital' : <><Check size={11}/> en casa</>}</span>}
-      {mia && (c.a
+      {mia ? (c.a
         ? <button className="lz-copia-btn" onClick={onDevolver} disabled={busy}>Devuelto</button>
-        : !c.digital && <button className="lz-copia-btn" onClick={onPrestar} disabled={busy}>Prestar</button>)}
+        : !c.digital && <button className="lz-copia-btn" onClick={onPrestar} disabled={busy}>Prestar</button>)
+      : !c.a && !c.digital && !sinCuenta && (pedida
+        ? <button className="lz-copia-btn pedido" onClick={() => onCancelar(pedida)} title="Ya se lo has pedido. Pulsa para retirar la petición"><Check size={11}/> Pedido</button>
+        : <button className="lz-copia-btn pedir" onClick={onPedir} title={`Pedirle a ${c.dueno.display} que te lo deje`}><Hand size={11}/> Pedir</button>)}
+    </div>
+  );
+}
+
+// Pedir un juego: un mensaje opcional y listo; al dueño le sale arriba en su Zona de préstamos
+function PedirModal({ p, onClose }) {
+  const [msg, setMsg] = useState('');
+  const [st, setSt] = useState('');
+  useEffect(() => { setMsg(''); setSt(''); }, [p]);
+  if (!p) return null;
+  const { c, J } = p;
+  const enviar = async () => { setSt('enviando'); try { await pedirJuego(c.dueno.user, c.id, msg); setSt('ok'); setTimeout(onClose, 1200); } catch (e) { setSt(e.message); } };
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
+        <div className="modal-header"><h3 className="modal-title">Pedir «{J.nombre}»</h3><button className="icon-btn" onClick={onClose}><X size={16}/></button></div>
+        <div className="modal-body">
+          <div className="gv-claim-who"><Avatar user={c.dueno} size={44}/><div><b>{c.dueno.display}</b><small>le llegará tu petición en su Zona de préstamos</small></div></div>
+          <label className="field-label" style={{ marginTop: 10 }}>Mensaje (opcional)</label>
+          <textarea className="field-input" rows={3} maxLength={300} value={msg} onChange={e => setMsg(e.target.value)} placeholder="¿Me lo dejas este finde? Te lo devuelvo en dos semanas"/>
+          {st && st !== 'enviando' && st !== 'ok' && <p className="gv-error">{st}</p>}
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+          <button className="btn btn-primary" onClick={enviar} disabled={st === 'enviando' || st === 'ok'}>
+            {st === 'ok' ? <><Check size={14}/> Enviado</> : <><Hand size={14}/> Pedírselo</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Arriba del todo: lo que me piden (para contestar) y lo que he pedido (y cómo va)
+function Peticiones({ reqs, busy, onContestar, onCancelar }) {
+  const rec = reqs.recibidas || [], env = reqs.enviadas || [];
+  if (!rec.length && !env.length) return null;
+  const ESTADO = { pendiente: 'esperando respuesta', aceptada: '¡te lo deja!', rechazada: 'ahora no puede', cancelada: 'retirada' };
+  return (
+    <div className="lz-pet">
+      {rec.length > 0 && (
+        <div className="lz-pet-col recibidas">
+          <p className="section-title"><Inbox size={13} style={{ verticalAlign: -2 }}/> Te piden <span>({rec.length})</span></p>
+          {rec.map(r => (
+            <div key={r.id} className="lz-pet-row">
+              <Avatar user={r.quien} size={34}/>
+              <div className="lz-pet-info"><b>{r.quien?.display}</b> te pide <b>{r.nombre}</b>{r.msg && <em>«{r.msg}»</em>}</div>
+              <div className="lz-pet-btns">
+                <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => onContestar(r, true)}><Check size={13}/> Prestárselo</button>
+                <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => onContestar(r, false)}>Ahora no</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {env.length > 0 && (
+        <div className="lz-pet-col">
+          <p className="section-title"><Hand size={13} style={{ verticalAlign: -2 }}/> Has pedido <span>({env.length})</span></p>
+          {env.map(r => (
+            <div key={r.id} className={'lz-pet-row ' + r.estado}>
+              <Avatar user={r.quien} size={28}/>
+              <div className="lz-pet-info"><b>{r.nombre}</b> a {r.quien?.display} · <span className="lz-pet-st">{ESTADO[r.estado] || r.estado}</span></div>
+              {r.estado === 'pendiente' && <button className="icon-btn" title="Retirar la petición" onClick={() => onCancelar(r)}><X size={14}/></button>}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

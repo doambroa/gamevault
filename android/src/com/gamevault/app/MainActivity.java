@@ -14,6 +14,8 @@ import android.provider.MediaStore;
 import android.util.Base64;
 import android.view.View;
 import android.view.Window;
+import android.print.PrintAttributes;
+import android.print.PrintManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -56,6 +58,7 @@ public class MainActivity extends Activity {
     private static final int FILE_CHOOSER = 1001;
 
     private WebView web;
+    private WebView printView;   // se guarda para que no se la lleve el recolector mientras imprime
     private ValueCallback<Uri[]> fileCallback;
 
     @Override
@@ -257,7 +260,27 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
-        public String version() { return "1.9.2"; }
+        public String version() { return "2.1.0"; }
+
+        // Catálogo en PDF: se carga el HTML en una WebView aparte y se manda al sistema de impresión,
+        // donde se elige «Guardar como PDF».
+        @JavascriptInterface
+        public void printHtml(final String html, final String title) {
+            runOnUiThread(new Runnable() { public void run() {
+                final WebView pw = new WebView(MainActivity.this);
+                printView = pw;
+                pw.getSettings().setJavaScriptEnabled(false);
+                pw.setWebViewClient(new Client() {
+                    @Override
+                    public void onPageFinished(WebView v, String url) {
+                        PrintManager pm = (PrintManager) getSystemService(PRINT_SERVICE);
+                        PrintAttributes attrs = new PrintAttributes.Builder().setMediaSize(PrintAttributes.MediaSize.ISO_A4).build();
+                        pm.print(title, v.createPrintDocumentAdapter(title), attrs);
+                    }
+                });
+                pw.loadDataWithBaseURL(ORIGIN, html, "text/html", "UTF-8", null);
+            }});
+        }
     }
 
     // ── Selector de archivos (<input type="file">) ────────────────────────────

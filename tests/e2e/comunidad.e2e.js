@@ -149,6 +149,32 @@ const server = file => JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data
     const pk = server('c_soiber.json').data.juegos.find(j => j.nombre === 'Pikmin 4');
     assert(pk.prestadoUsuario === 'zlotny' && pk.prestadoA === 'Zlotny', JSON.stringify(pk).slice(0, 200));
   });
+  await check('Préstamos: vista de tabla y consolas plegables (sirve en las dos vistas)', async () => {
+    await page.getByPlaceholder('¿Qué juego buscas?').fill('');
+    await page.getByRole('button', { name: /^Tabla/ }).click();
+    await page.locator('.lz-tabla').first().waitFor();
+    await shot('prestamos-tabla');
+    await page.getByRole('button', { name: /Plegar todo/ }).click();
+    assert(await page.locator('.lz-tabla').count() === 0, 'la tabla sigue a la vista');
+    await page.getByRole('button', { name: /Fichas/ }).click();
+    assert(await page.locator('.lz-juego').count() === 0, 'las fichas no respetan el plegado');
+    await shot('prestamos-plegado');
+    await page.getByRole('button', { name: /Desplegar todo/ }).click();
+    await page.locator('.lz-juego').first().waitFor();
+  });
+  await check('Botón a Créditos Finales en el menú', async () => {
+    const href = await page.locator('a.nav-ext').getAttribute('href');
+    assert(/\/creditos\/$/.test(href), href);
+  });
+  await check('Exportar PDF en la web: abre el catálogo listo para «Guardar como PDF»', async () => {
+    await page.locator('.nav-item', { hasText: 'Inicio' }).click();
+    const [pop] = await Promise.all([page.context().waitForEvent('page'), page.getByRole('button', { name: /Exportar PDF/ }).click()]);
+    await pop.getByText('Catálogo listo').waitFor({ timeout: 20000 });
+    const n = await pop.locator('.pg').count();
+    assert(n > 5, 'páginas: ' + n);
+    await pop.screenshot({ path: path.join(OUT, 'pdf-web.png') });
+    await pop.close();
+  });
   await check('Estadísticas: cifras con terminados, consolas con parte verde y «año a año» por cuándo me los pasé', async () => {
     await page.locator('.nav-item', { hasText: 'Estadísticas' }).click();
     await page.locator('.st-kpi.green').getByText('3').waitFor();
@@ -198,6 +224,38 @@ const server = file => JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data
     await p3.getByRole('button', { name: /ver lo que tienen mis colegas/ }).click();
     await p3.locator('.lz-mios').getByText('Pikmin 4').waitFor({ timeout: 20000 });
     await shot('movil-prestamos', p3);
+  });
+  await check('Pedir: Zlotny pide a David «Super Mario RPG» desde la ficha del juego en Préstamos', async () => {
+    await p3.getByPlaceholder('¿Qué juego buscas?').fill('super mario rpg');
+    const copia = p3.locator('.lz-juego', { hasText: 'Super Mario RPG' }).locator('.lz-copia', { hasText: 'daconstenla' });
+    await copia.getByRole('button', { name: /Pedir/ }).click();
+    const modal = p3.locator('.modal-box');
+    await modal.locator('textarea').fill('¿Me lo dejas el finde?');
+    await shot('pedir', p3);
+    await modal.getByRole('button', { name: /Pedírselo/ }).click();
+    await copia.getByRole('button', { name: /Pedido/ }).waitFor({ timeout: 10000 });
+    await p3.locator('.lz-pet').getByText('esperando respuesta').waitFor();
+    const r = JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data/requests.json')));
+    assert(r.length === 1 && r[0].from === 'zlotny' && r[0].to === 'daconstenla', JSON.stringify(r));
+  });
+  await check('David ve «Te piden» (con aviso en el menú) y al prestárselo queda apuntado en su colección', async () => {
+    CUR.page = p2;
+    await p2.reload();
+    await p2.locator('.nav-item', { hasText: 'Préstamos' }).locator('.nav-badge').getByText('1').waitFor({ timeout: 20000 });
+    await shot('aviso-menu', p2);
+    await p2.locator('.nav-item', { hasText: 'Préstamos' }).click();
+    await p2.locator('.lz-pet.recibidas, .lz-pet-col.recibidas').getByText('¿Me lo dejas el finde?').waitFor({ timeout: 20000 });
+    await shot('te-piden', p2);
+    await p2.getByRole('button', { name: /Prestárselo/ }).click();
+    await p2.locator('.lz-pet-col.recibidas').waitFor({ state: 'detached', timeout: 15000 });
+    const j = server('c_daconstenla.json').data.juegos.find(x => x.nombre === 'Super Mario RPG');
+    assert(j.prestadoUsuario === 'zlotny', JSON.stringify(j).slice(0, 200));
+    CUR.page = p3;
+  });
+  await check('A Zlotny le sale «¡te lo deja!» y el juego en «Tengo de otros»', async () => {
+    await p3.reload();
+    await p3.locator('.lz-pet').getByText('¡te lo deja!').waitFor({ timeout: 20000 });
+    await p3.locator('.lz-mios').getByText('Super Mario RPG').waitFor();
   });
 
   // ── Sincronización: un cambio en una pestaña llega a la cuenta ──

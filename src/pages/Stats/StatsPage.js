@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Gamepad2, Monitor, Clock, Euro, BookOpen, Trophy, CalendarDays, Tags, Hourglass, X } from 'lucide-react';
+import { Gamepad2, Monitor, Clock, Euro, BookOpen, Trophy, CalendarDays, Tags, Hourglass, X, Circle, BarChart2, LayoutGrid, GitCommitHorizontal } from 'lucide-react';
+import { imgSrc } from '../../utils/imgSrc';
 import './Stats.css';
 import JuegoPanel from '../Juegos/JuegoPanel';
 import JuegoForm from '../Juegos/JuegoForm';
@@ -17,6 +18,8 @@ import { useCreditos, findCredito } from '../../community/creditos';
 
 const api = window.api;
 const eur = n => (Number(n) || 0).toLocaleString('es-ES', { maximumFractionDigits: 0 }) + ' €';
+const VISTAS = [['burbujas', 'Burbujas', Circle], ['barras', 'Barras', BarChart2], ['tarjetas', 'Tarjetas', LayoutGrid]];
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const TRAMOS = [
   { k: 'corto', l: 'Menos de 5 h', min: 0, max: 5 },
   { k: 'tarde', l: '5 – 15 h', min: 5, max: 15 },
@@ -31,7 +34,12 @@ export default function StatsPage() {
   const [plats, setPlats] = useState([]);
   const [eje, setEje] = useState('fechaLanzamiento');      // fechaLanzamiento | fechaAdquisicion | terminado
   const [platFiltro, setPlatFiltro] = useState('');
-  const [sel, setSel] = useState(null);                     // { titulo, juegos } — lo que se ha pulsado
+  const [sel, setSel] = useState(null);
+  const [vistaC, setVistaSt] = useState(() => { try { return localStorage.getItem('gv-stats-vista') || 'burbujas'; } catch { return 'burbujas'; } });
+  const setVista = v => { setVistaSt(v); try { localStorage.setItem('gv-stats-vista', v); } catch {} };
+  const [tlPlat, setTlPlat] = useState('');
+  const [tlEje, setTlEje] = useState('fechaLanzamiento');
+  const verConsola = id => { setTlPlat(String(id)); setTimeout(() => document.getElementById('st-tl')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50); };                     // { titulo, juegos } — lo que se ha pulsado
   const [panelJuego, setPanelJuego] = useState(null);
   const [editJuego, setEditJuego] = useState(null);
   const cf = useCreditos();
@@ -136,25 +144,81 @@ export default function StatsPage() {
       </div>
 
       <div className="st-grid">
-        {/* ── Consolas ── */}
+        {/* ── Consolas: burbujas, barras o tarjetas; al pulsar una, su línea temporal ── */}
         <section className="st-card st-wide">
           <h2 className="st-h"><Monitor size={15}/> Juegos por consola
-            {cf.disponible && <span className="st-leyenda"><i className="st-sw st-sw-done"/> terminados <i className="st-sw"/> por jugar</span>}</h2>
-          <div className="st-bars">
-            {porConsola.map(({ p, js, n, t, img }) => (
-              <button key={p.id} className={'st-bar' + (sel?.k === 'p' + p.id ? ' on' : '')} onClick={() => abrir(p.nombre, js, 'p' + p.id)}
-                title={`${p.nombre}: ${n} juegos${cf.disponible ? ` · ${t} terminados` : ''}`}>
-                <span className="st-bar-img">{img ? <img src={img} alt=""/> : <Monitor size={16}/>}</span>
-                <span className="st-bar-name">{p.nombre}</span>
-                <span className="st-bar-track">
-                  <span className="st-bar-fill" style={{ width: `${(n / maxC) * 100}%` }}>
-                    {cf.disponible && t > 0 && <span className="st-bar-done" style={{ width: `${(t / n) * 100}%` }}/>}
+            <span className="view-selector st-views">
+              {VISTAS.map(([id, l, Icon]) => (
+                <button key={id} className={'view-btn' + (vistaC === id ? ' active' : '')} onClick={() => setVista(id)}><Icon size={14}/> {l}</button>
+              ))}
+            </span>
+          </h2>
+          {vistaC === 'burbujas' && (
+            <div className="bubbles-container st-bubbles">
+              {porConsola.map(({ p, n, t, img }) => {
+                const size = 78 + Math.sqrt(n / maxC) * 150;        // el área (no el diámetro) va con el número de juegos
+                return (
+                  <button key={p.id} className={'bubble-wrap' + (tlPlat === String(p.id) ? ' on' : '')} style={{ width: size }} onClick={() => verConsola(p.id)}
+                    title={`${p.nombre}: ${n} juegos${cf.disponible ? ` · ${t} terminados` : ''} — pulsa para ver su línea temporal`}>
+                    <span className="bubble" style={{ width: size, height: size }}>
+                      {img ? <img src={img} alt="" className="bubble-img st-bubble-img"/> : <span className="bubble-no-img">{p.nombre.slice(0, 2)}</span>}
+                      {cf.disponible && t > 0 && <svg className="st-ring" viewBox="0 0 100 100"><circle cx="50" cy="50" r="48" pathLength="100" strokeDasharray={`${(t / n) * 100} 100`}/></svg>}
+                      <span className="st-bubble-n">{n}</span>
+                    </span>
+                    <span className="bubble-label">{p.nombre}</span>
+                    {cf.disponible && <span className="bubble-sublabel">{t} terminado{t !== 1 ? 's' : ''}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {vistaC === 'barras' && (
+            <div className="st-bars">
+              {porConsola.map(({ p, n, t, img }) => (
+                <button key={p.id} className={'st-bar' + (tlPlat === String(p.id) ? ' on' : '')} onClick={() => verConsola(p.id)}
+                  title={`${p.nombre}: ${n} juegos${cf.disponible ? ` · ${t} terminados` : ''}`}>
+                  <span className="st-bar-img">{img ? <img src={img} alt=""/> : <Monitor size={16}/>}</span>
+                  <span className="st-bar-name">{p.nombre}</span>
+                  <span className="st-bar-track">
+                    <span className="st-bar-fill" style={{ width: `${(n / maxC) * 100}%` }}>
+                      {cf.disponible && t > 0 && <span className="st-bar-done" style={{ width: `${(t / n) * 100}%` }}/>}
+                    </span>
                   </span>
-                </span>
-                <span className="st-bar-n">{n}</span>
-              </button>
-            ))}
+                  <span className="st-bar-n">{n}</span>
+                </button>
+              ))}
+              {cf.disponible && <p className="st-leyenda" style={{ marginTop: 6 }}><i className="st-sw st-sw-done"/> terminados <i className="st-sw"/> por jugar</p>}
+            </div>
+          )}
+          {vistaC === 'tarjetas' && (
+            <div className="stat-grid">
+              {porConsola.map(({ p, n, t, img }) => (
+                <button key={p.id} className={'stat-tile' + (tlPlat === String(p.id) ? ' on' : '')} onClick={() => verConsola(p.id)}>
+                  <span className="stat-tile-num">{n}</span>
+                  {img ? <img src={img} alt="" className="stat-tile-img st-tile-img"/> : <span className="stat-tile-no-img">{p.nombre.slice(0, 2)}</span>}
+                  <span className="stat-tile-info"><span className="stat-tile-name">{p.nombre}</span><span className="stat-tile-marca">{cf.disponible ? `${t} terminados` : p.marca}</span></span>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* ── Línea temporal con carátulas ── */}
+        <section className="st-card st-wide" id="st-tl">
+          <h2 className="st-h"><GitCommitHorizontal size={15}/> Línea temporal</h2>
+          <div className="st-tools">
+            <select className="field-input field-select" style={{ width: 'auto' }} value={tlPlat} onChange={e => setTlPlat(e.target.value)} aria-label="Consola de la línea temporal">
+              <option value="">Todas las consolas</option>
+              {porConsola.map(({ p, n }) => <option key={p.id} value={p.id}>{p.nombre} ({n})</option>)}
+            </select>
+            <div className="seg">
+              {[['fechaLanzamiento', 'Salida'], ['fechaAdquisicion', 'Compra'], ...(cf.disponible ? [['terminado', 'Terminado']] : [])].map(([k, l]) => (
+                <button key={k} className={'seg-btn' + (tlEje === k ? ' active' : '')} onClick={() => setTlEje(k)}>{l}</button>
+              ))}
+            </div>
           </div>
+          <Timeline juegos={lista.filter(j => !tlPlat || String(j.plataformaId) === tlPlat)} eje={tlEje} hecho={hecho}
+            activeId={panelJuego?.id} onOpen={setPanelJuego} showPlat={!tlPlat}/>
         </section>
 
         {/* ── Año a año ── */}
@@ -257,3 +321,61 @@ function Kpi({ icon, n, l, onClick, title, tono }) {
   );
 }
 
+
+/* Línea temporal: escala de años real (los años sin juegos salen estrechos), las carátulas de cada año
+ * apiladas encima de su año y, al pulsar una, la ficha. Se desplaza en horizontal (también con el dedo)
+ * y al pasar el ratón o al enfocar se ve el título y la fecha. */
+function Timeline({ juegos, eje, hecho, activeId, onOpen, showPlat }) {
+  const fecha = j => (eje === 'terminado' ? (hecho(j) ? (j._cf.d || String(j._cf.y || '')) : '') : String(j[eje] || ''));
+  const conFecha = juegos.map(j => ({ j, f: fecha(j) })).filter(x => /^\d{4}/.test(x.f));
+  const sinFecha = juegos.filter(j => !/^\d{4}/.test(fecha(j)));
+  const sin = sinFecha.length;
+  const ref = React.useRef(null);
+  const [hover, setHover] = useState(null);
+  const porAnio = new Map();
+  for (const x of conFecha.sort((a, b) => a.f.localeCompare(b.f))) {
+    const y = Number(x.f.slice(0, 4)); if (!porAnio.has(y)) porAnio.set(y, []); porAnio.get(y).push(x);
+  }
+  const ys = [...porAnio.keys()];
+  // al cambiar de consola o eje, empezar por el final (lo más reciente)
+  useEffect(() => { const el = ref.current; if (el) el.scrollLeft = el.scrollWidth; }, [juegos.length, eje]);
+  if (!ys.length && !sin) return <p className="gv-muted">No hay juegos.</p>;
+  const anios = []; if (ys.length) for (let y = Math.min(...ys); y <= Math.max(...ys); y++) anios.push(y);
+  // Los que no tienen fecha van al final, en su propia columna, para que también se puedan abrir
+  if (sin && eje !== 'terminado') { anios.push('sin'); porAnio.set('sin', sinFecha.map(j => ({ j, f: '' }))); }
+  const maxPila = Math.max(1, ...[...porAnio.values()].map(l => l.length));
+  const fmt = f => { if (!f) return 'sin fecha'; const [y, m, d] = f.split('-'); return [d && Number(d), m && MESES[Number(m) - 1], y].filter(Boolean).join(' '); };
+  const rueda = e => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && ref.current) { ref.current.scrollLeft += e.deltaY; } };
+  return (
+    <div className="tl2">
+      <div className="tl2-scroll" ref={ref} onWheel={rueda}>
+        <div className="tl2-track" style={{ '--pila': Math.min(maxPila, 6) }}>
+          {anios.map(y => {
+            const l = porAnio.get(y) || [];
+            return (
+              <div key={y} className={'tl2-year' + (l.length ? '' : ' vacio')}>
+                <div className="tl2-pila">
+                  {l.map(({ j, f }) => {
+                    const img = (() => { try { const a = typeof j.imagenes === 'string' ? JSON.parse(j.imagenes || '[]') : (j.imagenes || []); return a[0] || null; } catch { return null; } })();
+                    return (
+                      <button key={j.id} className={'tl2-game' + (activeId === j.id ? ' on' : '') + (hecho(j) ? ' hecho' : '')}
+                        onClick={() => onOpen(j)} onMouseEnter={() => setHover({ j, f })} onMouseLeave={() => setHover(null)} onFocus={() => setHover({ j, f })} onBlur={() => setHover(null)}
+                        title={`${j.nombre} · ${fmt(f)}`} aria-label={`${j.nombre}, ${fmt(f)}`}>
+                        {img ? <img src={imgSrc(img)} alt="" loading="lazy"/> : <span>{j.nombre.slice(0, 18)}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className={'tl2-tick' + (y === 'sin' ? ' sin' : '')}><span>{y === 'sin' ? 'Sin fecha' : l.length ? y : (y % 5 === 0 ? y : '')}</span>{l.length > 0 && <b>{l.length}</b>}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <div className="tl2-info">
+        {hover ? <><b>{hover.j.nombre}</b> · {fmt(hover.f)}{showPlat && hover.j.plataformaNombre ? ` · ${hover.j.plataformaNombre}` : ''}{hecho(hover.j) ? ' · ✔ terminado' : ''}</>
+          : <span className="gv-muted">Pasa por encima o pulsa una carátula para ver su ficha · desliza para recorrer los años{sin > 0 && eje === 'terminado' ? ` · ${sin} sin terminar` : ''}</span>}
+      </div>
+    </div>
+  );
+}

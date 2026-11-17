@@ -10,6 +10,7 @@
  * sin restricciones CORS, más window.GVAndroid.saveFile() para exportar.
  */
 import { createCore } from '../core/gvCore';
+import { buildCatalogHtml } from '../core/pdfCatalog';
 
 const IS_ANDROID = typeof navigator !== 'undefined' && /GameVaultAndroid/.test(navigator.userAgent);
 const IS_IOS = typeof navigator !== 'undefined' && (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
@@ -203,7 +204,37 @@ export function createWebApi() {
         const data = await call('data:export');
         return downloadText(`gamevault-${new Date().toISOString().split('T')[0]}.json`, JSON.stringify(data, null, 2));
       },
-      exportPdf: async () => ({ error: 'La exportación a PDF está disponible en la versión de escritorio (Windows).' }),
+      // Catálogo en PDF: el mismo HTML que en Windows; aquí lo imprime el navegador («Guardar como PDF»)
+      // y en Android el sistema de impresión. La ventana se abre antes de cualquier espera para que el
+      // navegador no la bloquee como ventana emergente.
+      exportPdf: async () => {
+        const android = !!window.GVAndroid?.printHtml;
+        let w = null;
+        if (!android) { try { w = window.open('', '_blank'); } catch {} if (w) w.document.write('<p style="font:16px system-ui;padding:40px;color:#555">Preparando el catálogo…</p>'); }
+        const d = await call('data:export');
+        const abs = s => { if (!s) return null; try { return new URL(s, window.location.href).href; } catch { return null; } };
+        const html = buildCatalogHtml({ plataformas: d.plataformas || [], juegos: d.juegos || [], imgFor: abs });
+        if (android) { window.GVAndroid.printHtml(html, 'Catálogo GameVault'); return { ok: true }; }
+        const barra = `<div class="gv-print-bar" style="position:sticky;top:0;z-index:9;display:flex;gap:12px;align-items:center;justify-content:center;padding:10px;background:#16182b;color:#fff;font:14px system-ui">
+          <span>Catálogo listo · en el cuadro de imprimir elige <b>«Guardar como PDF»</b></span>
+          <button onclick="window.print()" style="font:600 14px system-ui;padding:8px 16px;border-radius:8px;border:0;background:#e63946;color:#fff">Imprimir / Guardar PDF</button></div>
+          <style>@media print{.gv-print-bar{display:none!important}}</style>`;
+        const final = html.replace(/<body([^>]*)>/i, `<body$1>${barra}`);
+        const imprimir = win => {
+          const imgs = [...win.document.images];
+          Promise.all(imgs.map(i => (i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; setTimeout(r, 8000); }))))
+            .then(() => setTimeout(() => { try { win.focus(); win.print(); } catch {} }, 300));
+        };
+        if (w) { w.document.open(); w.document.write(final); w.document.close(); imprimir(w); return { ok: true }; }
+        // Si el navegador bloqueó la ventana: imprimir desde un marco invisible
+        const f = document.createElement('iframe');
+        f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+        document.body.appendChild(f);
+        f.contentDocument.open(); f.contentDocument.write(final); f.contentDocument.close();
+        imprimir(f.contentWindow);
+        setTimeout(() => f.remove(), 120000);
+        return { ok: true };
+      },
       import: async () => {
         const [f] = await pickFile('.json,application/json');
         if (!f) return { cancelled: true };
