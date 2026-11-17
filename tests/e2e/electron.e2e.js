@@ -35,6 +35,9 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   page.on('dialog', d => { results.push(`   (alerta: "${d.message().slice(0, 90)}")`); d.accept(); });
+  // el perfil de Electron se comparte entre ejecuciones: partir del tamaño de texto automático
+  await page.waitForLoadState('domcontentloaded');
+  if (await page.evaluate(() => { const v = localStorage.getItem('gv-texto'); localStorage.removeItem('gv-texto'); return !!v; })) await page.reload();
   await page.setViewportSize({ width: 1440, height: 900 }).catch(() => {});
   const shot = n => page.screenshot({ path: path.join(OUT, `${String(step).padStart(2, '0')}-${n}.png` ) });
 
@@ -281,8 +284,12 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
     await page.locator('.tl2-game').first().waitFor();
     const n = await page.locator('.tl2-game').count();
     assert(n > 5, 'carátulas en la línea temporal: ' + n);
+    const porAnio = await page.locator('.tl2-year').evaluateAll(ys => Math.max(...ys.map(y => y.querySelectorAll('.tl2-game').length)));
+    assert(porAnio <= 3, 'como mucho 3 carátulas por año: ' + porAnio);
+    const pesadas = await page.locator('.tl2-game img').evaluateAll(is => is.filter(i => /media\.rawg\.io\/media\/(?!resize)/.test(i.src)).length);
+    assert(pesadas === 0, 'carátulas a tamaño completo en la línea temporal: ' + pesadas);
     await page.locator('.tl2-game').first().hover();
-    await page.locator('.tl2-info b').first().waitFor();
+    await page.locator('.tl2-info').getByText(/·/).waitFor();
     await shot('linea-temporal');
     await page.locator('.tl2-game').first().click();
     await page.locator('.jp-panel').waitFor();
@@ -487,6 +494,20 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   await page.setViewportSize({ width: 1440, height: 900 }).catch(() => {});
   await page.getByRole('heading', { name: 'Inicio' }).waitFor({ timeout: 20000 });
+  await check('Tamaño del texto: Automático según la pantalla y fijo desde Ajustes (sin barras de desplazamiento raras)', async () => {
+    await page.locator('.sidebar-footer').getByText('Ajustes').click();
+    const modal = page.locator('.modal-box');
+    await modal.getByRole('button', { name: 'Más grande' }).click();
+    assert(await page.evaluate(() => window.api.window.getZoom()) === 1.25, 'no se aplicó el zoom');
+    await shot('texto-grande');
+    const fit = await page.evaluate(() => { const r = document.querySelector('.shell').getBoundingClientRect(); return [Math.round(r.height), innerHeight, Math.round(r.width), innerWidth]; });
+    assert(Math.abs(fit[0] - fit[1]) <= 2 && Math.abs(fit[2] - fit[3]) <= 2, 'la ventana no encaja: ' + fit);
+    await modal.getByRole('button', { name: 'Automático' }).click();
+    assert(await page.evaluate(() => window.api.window.getZoom()) === 1, 'a 1440 px el automático debe ser 100 %');
+    await page.keyboard.press('Escape');
+    await modal.waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
+    if (await modal.count()) await modal.locator('.modal-close, button[aria-label="Cerrar"]').first().click().catch(() => {});
+  });
   await check('Tema claro/oscuro: el botón de la barra de título cambia el tema y se recuerda', async () => {
     const theme = () => page.evaluate(() => document.documentElement.dataset.theme);
     await page.evaluate(() => localStorage.removeItem('gv-theme'));   // partir de cero (el perfil de Electron se comparte entre ejecuciones)

@@ -137,6 +137,17 @@ const server = file => JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data
     await shot('prestamos-en-curso');
     await page.getByRole('button', { name: /Quién tiene cada juego/ }).click();
   });
+  await check('Pedir también a quien aún no tiene cuenta (Andrés): queda guardado para cuando se una', async () => {
+    await page.getByPlaceholder('¿Qué juego buscas?').fill('hollow knight');
+    const copia = page.locator('.lz-juego', { hasText: 'Hollow Knight' }).locator('.lz-copia', { hasText: 'Andrés Vieira' });
+    await copia.getByRole('button', { name: /Pedir/ }).click();
+    await page.locator('.modal-box').getByText(/Aún no tiene cuenta/).waitFor();
+    await page.locator('.modal-box').getByRole('button', { name: /Pedírselo/ }).click();
+    await copia.getByRole('button', { name: /Pedido/ }).waitFor({ timeout: 10000 });
+    const r = JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data/requests.json')));
+    assert(r.some(x => x.to === '~andres-vieira' && x.from === 'soiber'), JSON.stringify(r));
+    await shot('pedir-sin-cuenta');
+  });
   await check('Prestar uno de mis juegos a Zlotny desde la zona de préstamos (se sube solo a la cuenta)', async () => {
     await page.getByPlaceholder('¿Qué juego buscas?').fill('pikmin 4');
     const copia = page.locator('.lz-juego', { hasText: 'Pikmin 4' }).locator('.lz-copia.mia');
@@ -236,7 +247,7 @@ const server = file => JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data
     await copia.getByRole('button', { name: /Pedido/ }).waitFor({ timeout: 10000 });
     await p3.locator('.lz-pet').getByText('esperando respuesta').waitFor();
     const r = JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data/requests.json')));
-    assert(r.length === 1 && r[0].from === 'zlotny' && r[0].to === 'daconstenla', JSON.stringify(r));
+    assert(r.some(x => x.from === 'zlotny' && x.to === 'daconstenla' && x.nombre === 'Super Mario RPG'), JSON.stringify(r));
   });
   await check('David ve «Te piden» (con aviso en el menú) y al prestárselo queda apuntado en su colección', async () => {
     CUR.page = p2;
@@ -260,6 +271,19 @@ const server = file => JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data
 
   // ── Sincronización: un cambio en una pestaña llega a la cuenta ──
   CUR.page = page;
+  await check('Tamaño del texto en la web (zoom 125 %): la app sigue encajando en la ventana', async () => {
+    await page.locator('.sidebar-footer').getByText('Ajustes').click();
+    await page.locator('.modal-box').getByRole('button', { name: 'Más grande' }).click();
+    await page.keyboard.press('Escape');
+    await page.locator('.nav-item', { hasText: 'Estadísticas' }).click();
+    await page.locator('.st-kpi').first().waitFor();
+    const m = await page.evaluate(() => { const r = document.querySelector('.shell').getBoundingClientRect(); return { h: r.height, w: r.width, ih: innerHeight, iw: innerWidth, sh: document.documentElement.scrollHeight, z: document.documentElement.style.zoom }; });
+    assert(m.z === '1.25' && Math.abs(m.h - m.ih) < 3 && Math.abs(m.w - m.iw) < 3, JSON.stringify(m));
+    await shot('texto-grande-web');
+    await page.locator('.sidebar-footer').getByText('Ajustes').click();
+    await page.locator('.modal-box').getByRole('button', { name: 'Automático' }).click();
+    await page.keyboard.press('Escape');
+  });
   await check('Sincronización: crear un juego en la web lo sube a la cuenta en unos segundos', async () => {
     const rev0 = server('c_soiber.json').rev;
     await page.evaluate(async () => { const ps = await window.api.plataformas.getAll(); await window.api.juegos.create({ plataformaId: ps[0].id, nombre: 'Juego de prueba sync' }); });

@@ -7,7 +7,7 @@ import { ESTADO_CF } from '../community/creditos';
 /* Tarjeta de juego con la carátula bien grande. La usan «Juegos», el detalle de consola
  * y las colecciones de otras personas (ahí sin acciones). */
 export default function GameCard({ juego, showPlat = false, credito = null, active = false, onClick, actions = null, metric = null }) {
-  const src = firstImg(juego.imagenes);
+  const src = firstImg(juego.imagenes, 640);
   const [roto, setRoto] = useState(false);
   const anio = (juego.fechaLanzamiento || '').slice(0, 4);
   const horas = metric && juego[metric] > 0 ? juego[metric] : juego.hltbMain;

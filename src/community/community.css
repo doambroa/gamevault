@@ -255,3 +255,8 @@ button.lz-mov-p:hover span{text-decoration:underline}
 .lz-tabla-n small{display:block;font-weight:400;color:var(--text-3);font-size:11px}
 .lz-copias-fila{flex-wrap:wrap}
 .gv-jl-pedido{margin-left:auto;color:var(--green);font-weight:600;font-size:13px;display:inline-flex;align-items:center;gap:4px}
+/* 2.1.1: fichas de copia algo más grandes y «Pedir» bien visible */
+.lz-copia{font-size:13px;padding:4px 6px 4px 4px}
+.lz-copia-dueno{font-size:13px}
+.lz-copia-st{font-size:12.5px}
+.lz-copia-btn{font-size:12.5px;padding:5px 12px}

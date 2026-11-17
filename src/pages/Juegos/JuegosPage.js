@@ -1,6 +1,6 @@
 import { useCollapse, GroupHead, CollapseAll } from '../../utils/useCollapse';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { imgSrc, parseImgs } from '../../utils/imgSrc';
+import { parseImgs, thumb } from '../../utils/imgSrc';
 import { Plus, Gamepad2, Search, Edit2, Trash2, Download, Loader, Check, BookOpen, Upload, Clock, Layers, List, LayoutGrid, Rows3, ArrowUpDown, ChevronDown } from 'lucide-react';
 import GameCard from '../../components/GameCard';
 import { useCreditos, findCredito } from '../../community/creditos';
@@ -411,7 +411,7 @@ export default function JuegosPage() {
                         {/* Miniatura */}
                         <td style={{padding:'4px 6px 4px 12px'}}>
                           {imgs[0]
-                            ? <img src={imgSrc(imgs[0])}
+                            ? <img src={thumb(imgs[0], 200)}
                                 alt="" loading="lazy" style={{width:92,height:60,objectFit:'cover',borderRadius:6,border:'1px solid var(--border)',display:'block'}}/>
                             : <div style={{width:92,height:60,background:'var(--bg-3)',borderRadius:5,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--text-3)',fontSize:18}}>🎮</div>}
                         </td>

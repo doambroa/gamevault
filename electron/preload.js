@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webFrame } = require('electron');
 
 // Mensajes del proceso principal (peticiones a HLTB/VGChartz, etc.) en la consola de DevTools
 ipcRenderer.on('gv:log', (_, msg) => console.info('%c[GameVault]', 'color:#22d3ee', msg));
@@ -72,6 +72,9 @@ contextBridge.exposeInMainWorld('api', {
     minimize: () => ipcRenderer.send('win:min'),
     maximize: () => ipcRenderer.send('win:max'),
     close:    () => ipcRenderer.send('win:close'),
+    // zoom nativo de Chromium para el tamaño del texto (más fino que el zoom de CSS)
+    setZoom:  f => webFrame.setZoomFactor(Number(f) || 1),
+    getZoom:  () => webFrame.getZoomFactor(),
   },
   app: {
     isFirstRun:         () => ipcRenderer.invoke('app:isFirstRun'),

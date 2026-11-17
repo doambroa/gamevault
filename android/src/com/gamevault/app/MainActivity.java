@@ -260,7 +260,7 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
-        public String version() { return "2.1.0"; }
+        public String version() { return "2.1.1"; }
 
         // Catálogo en PDF: se carga el HTML en una WebView aparte y se manda al sistema de impresión,
         // donde se elige «Guardar como PDF».

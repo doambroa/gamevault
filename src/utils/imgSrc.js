@@ -45,7 +45,17 @@ export function parseImgs(raw) {
 /**
  * firstImg(raw) — devuelve la primera imagen lista para usar en <img src>
  */
-export function firstImg(raw) {
+export function firstImg(raw, w = 800) {
   const imgs = parseImgs(raw);
-  return imgs[0] ? imgSrc(imgs[0]) : null;
+  return imgs[0] ? (w ? thumb(imgs[0], w) : imgSrc(imgs[0])) : null;
+}
+
+/**
+ * thumb(url, ancho) — versión reducida de una imagen de RAWG (sus originales pesan 1–2 MB;
+ * a 640 px rondan 50 KB y a 200 px unos 7 KB). Otras URL se devuelven tal cual.
+ */
+export function thumb(p, w = 640) {
+  const s = imgSrc(p);
+  if (!s || !s.startsWith('https://media.rawg.io/media/') || /\/media\/(resize|crop)\//.test(s)) return s;
+  return s.replace('https://media.rawg.io/media/', `https://media.rawg.io/media/resize/${w}/-/`);
 }

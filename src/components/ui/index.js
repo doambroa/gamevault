@@ -1,3 +1,4 @@
+import { OPCIONES as TEXT_OPCIONES, getPref as getTextPref, setTextSize, getZoom } from '../../utils/textSize';
 import React, { useEffect, useState } from 'react';
 import { imgSrc } from '../../utils/imgSrc';
 import { X, Search, Loader, Check, ExternalLink } from 'lucide-react';
@@ -208,6 +209,20 @@ export function CoverPicker({ open, onClose, gameName, onSelect }) {
   );
 }
 
+// Tamaño del texto: automático según la pantalla o fijo
+function TamanoTexto() {
+  const [v, setV] = useState(getTextPref);
+  const cambiar = x => { setV(x); setTextSize(x); };
+  return (
+    <div style={{marginTop:22}}>
+      <p style={{fontSize:13,color:'var(--text-2)',marginBottom:8}}>Tamaño del texto <span style={{color:'var(--text-3)'}}>· «Automático» lo agranda en pantallas 2K/4K (ahora: {Math.round(getZoom()*100)} %)</span></p>
+      <div className="seg" style={{flexWrap:'wrap'}}>
+        {TEXT_OPCIONES.map(([k,l]) => <button key={k} className={'seg-btn' + (v===k?' active':'')} onClick={() => cambiar(k)}>{l.replace(/ \(.*\)/,'')}</button>)}
+      </div>
+    </div>
+  );
+}
+
 // ── Settings Modal ────────────────────────────────────────────────────────────
 export default function SettingsModal({ open, onClose, onWipe }) {
   const [key, setKey]   = useState('');
@@ -236,6 +251,7 @@ export default function SettingsModal({ open, onClose, onWipe }) {
           {saved ? <><Check size={14}/> Guardada</> : 'Guardar'}
         </Btn>
       </div>
+      <TamanoTexto/>
       {onWipe && (
         <div className="danger-zone">
           <div>

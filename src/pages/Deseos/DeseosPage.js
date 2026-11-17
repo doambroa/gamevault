@@ -3,7 +3,7 @@ import { Plus, Heart, Edit2, Trash2, ShoppingCart, Wand2, Image, Loader } from '
 import { Btn, Badge, PageHeader, EmptyState, ConfirmModal, Modal, Input, Select, Textarea, ImgThumbs, SkeletonList, CoverPicker } from '../../components/ui/index';
 import { autofillJuego } from '../../utils/rawg';
 import { useSort, SortTh } from '../../utils/useSort';
-import { imgSrc, parseImgs } from '../../utils/imgSrc';
+import { parseImgs, thumb } from '../../utils/imgSrc';
 
 const api = window.api;
 const GENEROS = ['Acción','Aventura','RPG','Deportes','Carreras','Plataformas','Shooter','Estrategia','Simulación','Lucha','Puzzle','Terror','MMORPG','Indie','Música','Otro'];
@@ -87,7 +87,7 @@ export default function DeseosPage() {
                   <tr key={d.id}>
                     <td>
                       {imgs[0]
-                        ?<img src={imgSrc(imgs[0])} alt="" style={{width:52,height:38,objectFit:'cover',borderRadius:4,border:'1px solid var(--border)'}}/>
+                        ?<img src={thumb(imgs[0], 200)} alt="" style={{width:52,height:38,objectFit:'cover',borderRadius:4,border:'1px solid var(--border)'}}/>
                         :<div style={{width:52,height:38,background:'var(--bg-3)',borderRadius:4,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--text-3)'}}><Heart size={12}/></div>}
                     </td>
                     <td className="td-name">{d.nombre}</td>

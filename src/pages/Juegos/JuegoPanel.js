@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { imgSrc, parseImgs } from '../../utils/imgSrc';
+import { imgSrc, parseImgs, thumb } from '../../utils/imgSrc';
 import { X, Edit2, Monitor, Calendar, Euro, Users, Globe, Tag, Info, ChevronLeft, ChevronRight, BookOpen, RefreshCw, Copy } from 'lucide-react';
 import { Badge } from '../../components/ui/index';
 import VentasSection from './VentasSection';
@@ -106,7 +106,7 @@ export default function JuegoPanel({ juego, plataforma, open, onClose, onEdit, o
           {/* Image gallery */}
           {imgs.length > 0 && (
             <div className="jp-gallery">
-              <img src={imgSrc(imgs[imgIdx])} alt={juego.nombre} className="jp-main-img" onClick={() => setZoom(true)} title="Ver en grande"/>
+              <img src={thumb(imgs[imgIdx], 1280)} alt={juego.nombre} className="jp-main-img" onClick={() => setZoom(true)} title="Ver en grande"/>
               <button className="jp-zoom-btn" onClick={() => setZoom(true)} title="Ver en grande"><Maximize2 size={14}/></button>
               {imgs.length > 1 && (
                 <>
@@ -310,7 +310,7 @@ export default function JuegoPanel({ juego, plataforma, open, onClose, onEdit, o
           {imgs.length > 1 && (
             <div className="jp-thumbs">
               {imgs.map((img, i) => (
-                <img key={i} src={imgSrc(img)} alt=""
+                <img key={i} src={thumb(img, 200)} alt=""
                   className={`jp-thumb ${i === imgIdx ? 'jp-thumb-active' : ''}`}
                   onClick={() => setImgIdx(i)} />
               ))}

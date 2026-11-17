@@ -401,7 +401,12 @@ switch ($action) {
   /* ---------- peticiones de préstamo: «¿me lo dejas?» ---------- */
   case 'requests':  // GET → { recibidas: pendientes para mí, enviadas: las mías (últimos 60 días) }
     $u = requireUser(); $prof = profiles(); $all = users();
-    $pub = function ($n) use ($all, $prof) { return isset($all[$n]) ? publicUser($n, $all[$n], $prof) : ['user' => $n, 'display' => $n]; };
+    $pend = pendings();
+    $pub = function ($n) use ($all, $prof, $pend) {
+      if (isset($all[$n])) return publicUser($n, $all[$n], $prof);
+      if (isset($pend[$n])) return ['user' => $n, 'display' => $pend[$n]['display'] ?? $n, 'pending' => true];
+      return ['user' => $n, 'display' => $n];
+    };
     $rec = []; $env = []; $lim = date('c', time() - 60 * 86400);
     foreach (reqs() as $r) {
       if ($r['to'] === $u && $r['estado'] === 'pendiente') $rec[] = $r + ['quien' => $pub($r['from'])];
@@ -413,8 +418,8 @@ switch ($action) {
     $u = requireUser(); $b = body();
     $to = strtolower((string)($b['owner'] ?? '')); $jid = (int)($b['id'] ?? 0);
     if ($to === $u) out(['error' => 'Ese juego ya es tuyo'], 400);
-    if (isPendingId($to)) out(['error' => 'Todavía no tiene cuenta en GameVault: pídeselo por otro lado'], 400);
-    if (!isset(users()[$to])) out(['error' => 'Esa persona no existe'], 404);
+    // a quien aún no tiene cuenta también se le puede pedir: le llegará cuando reclame su colección
+    if (!isPendingId($to) && !isset(users()[$to])) out(['error' => 'Esa persona no existe'], 404);
     $j = null; foreach ((readJson(collFile($to), null)['data']['juegos'] ?? []) as $x) if ((int)($x['id'] ?? 0) === $jid) $j = $x;
     if (!$j) out(['error' => 'Ese juego ya no está en su colección'], 404);
     if (!empty($j['prestadoA'])) out(['error' => 'Ahora mismo lo tiene otra persona'], 409);
@@ -486,6 +491,8 @@ switch ($action) {
       if ($hit) { $c['rev'] = (int)($c['rev'] ?? 0) + 1; $c['updatedAt'] = date('c'); writeJson($cf, $c, false); }
     }
     unset($all[$id]); writeJson("$DIR/pending.json", $all);
+    // las peticiones que le hicieron mientras no tenía cuenta pasan a su cuenta
+    if (is_file("$DIR/requests.json")) reqTx(function (&$l) use ($id, $u) { foreach ($l as $k => $r) { if ($r['to'] === $id) $l[$k]['to'] = $u; } });
     @rename(collFile($id), collFile($id) . '.reclamado-por-' . $u);
     out(['ok' => true, 'rev' => $rev] + counts(['data' => $merged]));
 

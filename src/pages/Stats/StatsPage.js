@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Gamepad2, Monitor, Clock, Euro, BookOpen, Trophy, CalendarDays, Tags, Hourglass, X, Circle, BarChart2, LayoutGrid, GitCommitHorizontal } from 'lucide-react';
-import { imgSrc } from '../../utils/imgSrc';
 import './Stats.css';
 import JuegoPanel from '../Juegos/JuegoPanel';
 import JuegoForm from '../Juegos/JuegoForm';
@@ -37,7 +36,7 @@ export default function StatsPage() {
   const [sel, setSel] = useState(null);
   const [vistaC, setVistaSt] = useState(() => { try { return localStorage.getItem('gv-stats-vista') || 'burbujas'; } catch { return 'burbujas'; } });
   const setVista = v => { setVistaSt(v); try { localStorage.setItem('gv-stats-vista', v); } catch {} };
-  const [tlPlat, setTlPlat] = useState('');
+  const [tlPlatSel, setTlPlat] = useState(null);       // null = la consola con más juegos
   const [tlEje, setTlEje] = useState('fechaLanzamiento');
   const verConsola = id => { setTlPlat(String(id)); setTimeout(() => document.getElementById('st-tl')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50); };                     // { titulo, juegos } — lo que se ha pulsado
   const [panelJuego, setPanelJuego] = useState(null);
@@ -62,7 +61,7 @@ export default function StatsPage() {
     ...j, plataformaNombre: j.plataformaNombre || platPorId[j.plataformaId]?.nombre || '',
     _cf: findCredito(cf.idx, j),
   })), [juegos, platPorId, cf]);
-  const hecho = j => j._cf?.e === 'terminado';
+  const hecho = useCallback(j => j._cf?.e === 'terminado', []);
 
   // ── Números de cabecera ──
   const kpi = useMemo(() => {
@@ -84,6 +83,7 @@ export default function StatsPage() {
     return { p, js, n: js.length, t: js.filter(hecho).length, img: firstImg(p.imagenes) };
   }).filter(x => x.n > 0).sort((a, b) => b.n - a.n), [plats, lista]); // eslint-disable-line react-hooks/exhaustive-deps
   const maxC = porConsola[0]?.n || 1;
+  const tlPlat = tlPlatSel ?? (porConsola[0] ? String(porConsola[0].p.id) : '');
 
   // ── Año a año (con escala de tiempo de verdad: los años vacíos también salen) ──
   const anios = useMemo(() => {
@@ -218,7 +218,8 @@ export default function StatsPage() {
             </div>
           </div>
           <Timeline juegos={lista.filter(j => !tlPlat || String(j.plataformaId) === tlPlat)} eje={tlEje} hecho={hecho}
-            activeId={panelJuego?.id} onOpen={setPanelJuego} showPlat={!tlPlat}/>
+            activeId={panelJuego?.id} onOpen={setPanelJuego} showPlat={!tlPlat}
+            onMore={(label, js) => abrir(`${label} · ${platPorId[tlPlat]?.nombre || 'todas las consolas'}`, js, 'tl' + label + tlPlat)}/>
         </section>
 
         {/* ── Año a año ── */}
@@ -322,60 +323,91 @@ function Kpi({ icon, n, l, onClick, title, tono }) {
 }
 
 
-/* Línea temporal: escala de años real (los años sin juegos salen estrechos), las carátulas de cada año
- * apiladas encima de su año y, al pulsar una, la ficha. Se desplaza en horizontal (también con el dedo)
- * y al pasar el ratón o al enfocar se ve el título y la fecha. */
-function Timeline({ juegos, eje, hecho, activeId, onOpen, showPlat }) {
-  const fecha = j => (eje === 'terminado' ? (hecho(j) ? (j._cf.d || String(j._cf.y || '')) : '') : String(j[eje] || ''));
-  const conFecha = juegos.map(j => ({ j, f: fecha(j) })).filter(x => /^\d{4}/.test(x.f));
-  const sinFecha = juegos.filter(j => !/^\d{4}/.test(fecha(j)));
-  const sin = sinFecha.length;
+/* Línea temporal: escala de años real, las carátulas de cada año encima de su año y, al pulsar una, la ficha.
+ * Pensada para que vaya fluida: miniaturas pequeñas (7 KB en vez de 1–2 MB), como mucho 3 carátulas por
+ * año (el resto en «+N», que abre el año entero debajo), los años vacíos seguidos se juntan en un hueco
+ * y pasar el ratón no vuelve a pintar nada (el texto de abajo se cambia directamente). */
+const POR_ANIO = 3;
+function Timeline({ juegos, eje, hecho, activeId, onOpen, onMore, showPlat }) {
   const ref = React.useRef(null);
-  const [hover, setHover] = useState(null);
-  const porAnio = new Map();
-  for (const x of conFecha.sort((a, b) => a.f.localeCompare(b.f))) {
-    const y = Number(x.f.slice(0, 4)); if (!porAnio.has(y)) porAnio.set(y, []); porAnio.get(y).push(x);
-  }
-  const ys = [...porAnio.keys()];
-  // al cambiar de consola o eje, empezar por el final (lo más reciente)
-  useEffect(() => { const el = ref.current; if (el) el.scrollLeft = el.scrollWidth; }, [juegos.length, eje]);
-  if (!ys.length && !sin) return <p className="gv-muted">No hay juegos.</p>;
-  const anios = []; if (ys.length) for (let y = Math.min(...ys); y <= Math.max(...ys); y++) anios.push(y);
-  // Los que no tienen fecha van al final, en su propia columna, para que también se puedan abrir
-  if (sin && eje !== 'terminado') { anios.push('sin'); porAnio.set('sin', sinFecha.map(j => ({ j, f: '' }))); }
-  const maxPila = Math.max(1, ...[...porAnio.values()].map(l => l.length));
+  const infoRef = React.useRef(null);
   const fmt = f => { if (!f) return 'sin fecha'; const [y, m, d] = f.split('-'); return [d && Number(d), m && MESES[Number(m) - 1], y].filter(Boolean).join(' '); };
-  const rueda = e => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && ref.current) { ref.current.scrollLeft += e.deltaY; } };
+  const { cols, items, sin } = useMemo(() => {
+    const fecha = j => (eje === 'terminado' ? (hecho(j) ? (j._cf.d || String(j._cf.y || '')) : '') : String(j[eje] || ''));
+    const items = []; const porAnio = new Map(); const sinF = [];
+    for (const j of juegos) {
+      const f = fecha(j);
+      if (!/^\d{4}/.test(f)) { sinF.push(j); continue; }
+      const y = Number(f.slice(0, 4)); if (!porAnio.has(y)) porAnio.set(y, []); porAnio.get(y).push({ j, f });
+    }
+    const ys = [...porAnio.keys()].sort((a, b) => a - b);
+    const cols = [];
+    const add = (key, label, l) => {
+      l.sort((a, b) => a.f.localeCompare(b.f));
+      cols.push({ key, label, n: l.length, todos: l.map(x => x.j), vis: l.slice(0, POR_ANIO).map(x => { items.push(x); return items.length - 1; }) });
+    };
+    for (let i = 0; i < ys.length; i++) {
+      add(ys[i], String(ys[i]), porAnio.get(ys[i]));
+      const sig = ys[i + 1];
+      if (sig && sig - ys[i] > 1) cols.push({ key: 'gap' + ys[i], gap: sig - ys[i] - 1 === 1 ? String(ys[i] + 1) : `${ys[i] + 1}–${sig - 1}` });
+    }
+    if (sinF.length && eje !== 'terminado') add('sin', 'Sin fecha', sinF.map(j => ({ j, f: '' })));
+    return { cols, items, sin: sinF.length };
+  }, [juegos, eje, hecho]);
+
+  // empezar por lo más reciente al cambiar de consola o de eje
+  useEffect(() => { const el = ref.current; if (el) el.scrollLeft = el.scrollWidth; }, [cols]);
+  // la rueda del ratón mueve la línea en horizontal (y no la página) mientras quede recorrido
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    const fn = e => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      const max = el.scrollWidth - el.clientWidth;
+      if (max <= 0 || (e.deltaY < 0 && el.scrollLeft <= 0) || (e.deltaY > 0 && el.scrollLeft >= max - 1)) return;
+      e.preventDefault(); el.scrollLeft += e.deltaY;
+    };
+    el.addEventListener('wheel', fn, { passive: false });
+    return () => el.removeEventListener('wheel', fn);
+  }, []);
+  const ayuda = 'Pasa por encima o pulsa una carátula para ver su ficha · desliza o usa la rueda para recorrer los años';
+  const info = i => {
+    const el = infoRef.current; if (!el) return;
+    if (i == null) { el.textContent = ayuda; el.classList.add('gv-muted'); return; }
+    const { j, f } = items[i];
+    el.classList.remove('gv-muted');
+    el.textContent = `${j.nombre} · ${fmt(f)}${showPlat && j.plataformaNombre ? ' · ' + j.plataformaNombre : ''}${hecho(j) ? ' · ✔ terminado' : ''}`;
+  };
+  const sobre = e => { const b = e.target.closest('[data-i]'); info(b ? Number(b.dataset.i) : null); };
+  if (!cols.length) return <p className="gv-muted">No hay juegos con esta fecha{eje === 'terminado' ? ' (aún no te has pasado ninguno de esta consola)' : ''}.</p>;
   return (
     <div className="tl2">
-      <div className="tl2-scroll" ref={ref} onWheel={rueda}>
-        <div className="tl2-track" style={{ '--pila': Math.min(maxPila, 6) }}>
-          {anios.map(y => {
-            const l = porAnio.get(y) || [];
-            return (
-              <div key={y} className={'tl2-year' + (l.length ? '' : ' vacio')}>
-                <div className="tl2-pila">
-                  {l.map(({ j, f }) => {
-                    const img = (() => { try { const a = typeof j.imagenes === 'string' ? JSON.parse(j.imagenes || '[]') : (j.imagenes || []); return a[0] || null; } catch { return null; } })();
-                    return (
-                      <button key={j.id} className={'tl2-game' + (activeId === j.id ? ' on' : '') + (hecho(j) ? ' hecho' : '')}
-                        onClick={() => onOpen(j)} onMouseEnter={() => setHover({ j, f })} onMouseLeave={() => setHover(null)} onFocus={() => setHover({ j, f })} onBlur={() => setHover(null)}
-                        title={`${j.nombre} · ${fmt(f)}`} aria-label={`${j.nombre}, ${fmt(f)}`}>
-                        {img ? <img src={imgSrc(img)} alt="" loading="lazy"/> : <span>{j.nombre.slice(0, 18)}</span>}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className={'tl2-tick' + (y === 'sin' ? ' sin' : '')}><span>{y === 'sin' ? 'Sin fecha' : l.length ? y : (y % 5 === 0 ? y : '')}</span>{l.length > 0 && <b>{l.length}</b>}</div>
+      <div className="tl2-scroll" ref={ref} onMouseOver={sobre} onMouseLeave={() => info(null)} onFocus={sobre}>
+        <div className="tl2-track">
+          {cols.map(c => c.gap ? (
+            <div key={c.key} className="tl2-gap" title={`Sin juegos: ${c.gap}`}><div className="tl2-tick"><span>{c.gap}</span></div></div>
+          ) : (
+            <div key={c.key} className={'tl2-year' + (c.key === 'sin' ? ' sin' : '')}>
+              <div className="tl2-pila">
+                {c.n > POR_ANIO && (
+                  <button className="tl2-more" onClick={() => onMore(c.label, c.todos)} title={`Ver los ${c.n} juegos de ${c.label}`}>+{c.n - POR_ANIO}</button>
+                )}
+                {c.vis.map(i => {
+                  const { j } = items[i];
+                  const img = firstImg(j.imagenes, 200);
+                  return (
+                    <button key={j.id} data-i={i} className={'tl2-game' + (activeId === j.id ? ' on' : '') + (hecho(j) ? ' hecho' : '')}
+                      onClick={() => onOpen(j)} aria-label={`${j.nombre}, ${fmt(items[i].f)}`}>
+                      {img ? <img src={img} alt="" loading="lazy" decoding="async" width="72" height="96"/> : <span>{j.nombre.slice(0, 24)}</span>}
+                    </button>
+                  );
+                })}
               </div>
-            );
-          })}
+              <div className="tl2-tick"><span>{c.label}</span><b>{c.n}</b></div>
+            </div>
+          ))}
         </div>
       </div>
-      <div className="tl2-info">
-        {hover ? <><b>{hover.j.nombre}</b> · {fmt(hover.f)}{showPlat && hover.j.plataformaNombre ? ` · ${hover.j.plataformaNombre}` : ''}{hecho(hover.j) ? ' · ✔ terminado' : ''}</>
-          : <span className="gv-muted">Pasa por encima o pulsa una carátula para ver su ficha · desliza para recorrer los años{sin > 0 && eje === 'terminado' ? ` · ${sin} sin terminar` : ''}</span>}
-      </div>
+      <div className="tl2-info gv-muted" ref={infoRef}>{ayuda}{sin > 0 && eje === 'terminado' ? ` · ${sin} sin terminar` : ''}</div>
     </div>
   );
 }

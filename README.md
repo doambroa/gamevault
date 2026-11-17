@@ -34,6 +34,13 @@ Las bases de datos de versiones anteriores se actualizan solas al abrir la 1.8 (
 
 ---
 
+## Novedades de la 2.1.1
+
+- Línea temporal mucho más ligera y despejada (miniaturas, 3 carátulas por año y «+N» para ver el año entero; los años vacíos se juntan).
+- Las carátulas se descargan reducidas en toda la app: va bastante más rápida.
+- «Pedir» también a quien aún no tiene cuenta (le llega al unirse).
+- **Tamaño del texto** en Ajustes: Automático (más grande en pantallas 2K/4K), 90 %, 100 %, 110 %, 125 % o 140 %.
+
 ## Novedades de la 2.1
 
 - **Estadísticas**: vuelven las burbujas por consola (su tamaño depende de los juegos; el aro verde es la parte terminada) con el selector Burbujas / Barras / Tarjetas. Al pulsar una consola se abre su **línea temporal**: carátulas sobre sus años (con los años vacíos), se desliza con el dedo o la rueda, al pasar por encima se ve título y fecha y al pulsar se abre la ficha (editable). Los juegos sin fecha salen al final. Debajo siguen «Año a año», duración y géneros.

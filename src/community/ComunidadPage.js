@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Users, Search, Gamepad2, Monitor, Trophy, ArrowLeft, Heart, Lock, BookOpen, Check, X, ArrowLeftRight, Copy, Link2, Hand } from 'lucide-react';
 import { PageHeader, EmptyState, Btn, SkeletonList } from '../components/ui/index';
 import GameCard from '../components/GameCard';
-import { firstImg, parseImgs, imgSrc } from '../utils/imgSrc';
+import { firstImg, parseImgs, thumb } from '../utils/imgSrc';
 import { fmtHours } from '../utils/hltb';
 import { useAccount, fetchUsers, fetchView, fetchPending, pedirJuego } from './account';
 import { Avatar, LoginForm } from './ui';
@@ -258,7 +258,7 @@ function JuegoLectura({ juego, plat, credito, dueno, onClose }) {
   const fechaEs = f => (f ? f.split('-').reverse().join('/') : null);
   const { me } = useAccount();
   const [pedido, setPedido] = useState('');
-  const puedePedir = me && dueno.user !== me.user && !String(dueno.user).startsWith('~') && !juego.prestadoA && juego.estado !== 'Digital';
+  const puedePedir = me && dueno.user !== me.user && !juego.prestadoA && juego.estado !== 'Digital';
   const pedir = async () => { setPedido('…'); try { await pedirJuego(dueno.user, juego.id); setPedido('ok'); } catch (e) { setPedido(e.message); } };
   return (
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
@@ -266,8 +266,8 @@ function JuegoLectura({ juego, plat, credito, dueno, onClose }) {
         <button className="modal-close gv-jl-x" onClick={onClose}><X size={18}/></button>
         {imgs.length > 0 && (
           <div className="gv-jl-img">
-            <img src={imgSrc(imgs[i])} alt={juego.nombre}/>
-            {imgs.length > 1 && <div className="gv-jl-thumbs">{imgs.map((s, k) => <img key={k} src={imgSrc(s)} alt="" className={k === i ? 'on' : ''} onClick={() => setI(k)}/>)}</div>}
+            <img src={thumb(imgs[i], 1280)} alt={juego.nombre}/>
+            {imgs.length > 1 && <div className="gv-jl-thumbs">{imgs.map((s, k) => <img key={k} src={thumb(s, 200)} alt="" className={k === i ? 'on' : ''} onClick={() => setI(k)}/>)}</div>}
           </div>
         )}
         <div className="gv-jl-body">

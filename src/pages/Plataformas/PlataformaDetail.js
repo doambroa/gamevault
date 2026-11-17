@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { imgSrc, parseImgs } from '../../utils/imgSrc';
+import { imgSrc, parseImgs, thumb } from '../../utils/imgSrc';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Edit2, Trash2, Plus, Gamepad2, Copy } from 'lucide-react';
 import { Btn, Badge, ConfirmModal } from '../../components/ui/index';
@@ -189,7 +189,7 @@ export default function PlataformaDetail() {
                     onClick={() => { setPanelJuego(j); setPanelOpen(true); }}>
                     <td style={{padding:'8px 6px 8px 12px'}}>
                       {jImgs[0]
-                        ? <img src={imgSrc(jImgs[0])}
+                        ? <img src={thumb(jImgs[0], 200)}
                             alt="" style={{width:36,height:24,objectFit:'cover',borderRadius:4,border:'1px solid var(--border)'}}/>
                         : <div style={{width:36,height:24,background:'var(--bg-3)',borderRadius:4}}/>}
                     </td>

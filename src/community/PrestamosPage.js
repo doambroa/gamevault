@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, ArrowRight, ArrowLeftRight, Gamepad2, Check, RefreshCw, ChevronDown, Undo2, Users, Hand, X, LayoutGrid, Rows3, Inbox } from 'lucide-react';
 import { useCollapse, GroupHead, CollapseAll } from '../utils/useCollapse';
 import { PageHeader, EmptyState, SkeletonList, Btn } from '../components/ui/index';
-import { imgSrc } from '../utils/imgSrc';
+import { thumb } from '../utils/imgSrc';
 import { canon, normalize } from '../core/text';
 import { claveConsola, imagenPorNombre } from '../data/consolas';
 import { useAccount, fetchLoans, pushNow, useRequests, refreshRequests, pedirJuego, cancelarPeticion, contestarPeticion } from './account';
@@ -260,7 +260,7 @@ export default function PrestamosPage() {
 
 const Cover = ({ img, grande }) => (
   <div className={'lz-cover' + (grande ? ' grande' : '')}>
-    {img ? <img src={imgSrc(img)} alt="" loading="lazy"/> : <Gamepad2 size={grande ? 24 : 18}/>}
+    {img ? <img src={thumb(img, grande ? 320 : 200)} alt="" loading="lazy" decoding="async"/> : <Gamepad2 size={grande ? 24 : 18}/>}
   </div>
 );
 
@@ -287,9 +287,9 @@ function Copia({ c, mia, pedida, porUsuario, onPrestar, onDevolver, onPerfil, on
       {mia ? (c.a
         ? <button className="lz-copia-btn" onClick={onDevolver} disabled={busy}>Devuelto</button>
         : !c.digital && <button className="lz-copia-btn" onClick={onPrestar} disabled={busy}>Prestar</button>)
-      : !c.a && !c.digital && !sinCuenta && (pedida
+      : !c.a && !c.digital && (pedida
         ? <button className="lz-copia-btn pedido" onClick={() => onCancelar(pedida)} title="Ya se lo has pedido. Pulsa para retirar la petición"><Check size={11}/> Pedido</button>
-        : <button className="lz-copia-btn pedir" onClick={onPedir} title={`Pedirle a ${c.dueno.display} que te lo deje`}><Hand size={11}/> Pedir</button>)}
+        : <button className="lz-copia-btn pedir" onClick={onPedir} title={`Pedirle a ${c.dueno.display} que te lo deje${sinCuenta ? ' (le llegará cuando se una a GameVault)' : ''}`}><Hand size={12}/> Pedir</button>)}
     </div>
   );
 }
@@ -307,7 +307,7 @@ function PedirModal({ p, onClose }) {
       <div className="modal-box" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
         <div className="modal-header"><h3 className="modal-title">Pedir «{J.nombre}»</h3><button className="icon-btn" onClick={onClose}><X size={16}/></button></div>
         <div className="modal-body">
-          <div className="gv-claim-who"><Avatar user={c.dueno} size={44}/><div><b>{c.dueno.display}</b><small>le llegará tu petición en su Zona de préstamos</small></div></div>
+          <div className="gv-claim-who"><Avatar user={c.dueno} size={44}/><div><b>{c.dueno.display}</b><small>{String(c.dueno.user).startsWith('~') ? 'Aún no tiene cuenta: le llegará en cuanto se una a GameVault (pásale su enlace)' : 'le llegará tu petición en su Zona de préstamos'}</small></div></div>
           <label className="field-label" style={{ marginTop: 10 }}>Mensaje (opcional)</label>
           <textarea className="field-input" rows={3} maxLength={300} value={msg} onChange={e => setMsg(e.target.value)} placeholder="¿Me lo dejas este finde? Te lo devuelvo en dos semanas"/>
           {st && st !== 'enviando' && st !== 'ok' && <p className="gv-error">{st}</p>}

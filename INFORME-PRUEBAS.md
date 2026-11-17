@@ -1,5 +1,13 @@
 # GameVault — Informe de pruebas y errores corregidos
 
+## Versión 2.1.1 (17-11-2026)
+
+Unitarias 45/45 · escritorio 38/38 · comunidad 26/26 · Android 16/16 · iPhone 9/9 · accesorios 8/8.
+
+1. **Línea temporal lenta**: cargaba las carátulas originales de RAWG (1–2 MB cada una) y volvía a pintar todas al pasar el ratón. Ahora usa miniaturas (≈7 KB), 3 carátulas por año como mucho (el resto en «+N»), junta los años vacíos y el ratón no provoca repintados. Las carátulas de toda la app (Juegos, Préstamos, fichas) también usan versiones reducidas: unas 25 veces menos datos.
+2. **«Pedir» no salía**: solo aparecía para personas con cuenta, y todos los demás de la tabla de Switch aún no la tienen. Ahora se les puede pedir igual y la petición les llega al unirse.
+3. **Texto pequeño en pantallas 2K**: tamaño automático según la pantalla (110 % desde 1800 px de ancho, 120 % desde 2300 px) y ajuste manual en Ajustes. En Windows usa el zoom nativo de Chromium.
+
 ## Versión 2.1 (17-11-2026)
 
 | Batería | Resultado |
