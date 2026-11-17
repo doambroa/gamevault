@@ -1,5 +1,15 @@
 # GameVault — Informe de pruebas y errores corregidos
 
+## Versión 2.1.2 (17-11-2026)
+
+Unitarias 45/45 · escritorio 38/38 · comunidad 26/26 · Android 16/16 · iPhone 9/9 · accesorios 8/8. Probado además contra el servidor real (proxy de ventas y HowLongToBeat).
+
+1. **Carátulas rotas (404) en Préstamos y en el Inicio**: RAWG solo sirve miniaturas de 200, 420, 640 y 1280 px; la 2.1.1 pedía 320 y 800. Ahora se ajusta siempre a un ancho válido, y las pruebas comprueban que no hay ninguna imagen rota.
+2. **Ventas y HowLongToBeat no iban en la web** («Unexpected token '<'»): el PHP de XAMPP no tiene activada la extensión curl y `proxy.php` fallaba. Ahora, sin curl, usa `file_get_contents` con los certificados de XAMPP (como Créditos Finales).
+3. **Foto de perfil** aplastada y fuera del recuadro en «Mi cuenta».
+4. **Línea temporal**: vuelve la ficha ampliada al pasar el ratón (carátula grande, consola, fecha, género, duración, nota, si está terminado o prestado); las columnas ocupan todo el ancho; arranca en «Todas las consolas».
+5. En el Inicio, los juegos de Créditos Finales que no están en la colección usan la carátula de Créditos Finales.
+
 ## Versión 2.1.1 (17-11-2026)
 
 Unitarias 45/45 · escritorio 38/38 · comunidad 26/26 · Android 16/16 · iPhone 9/9 · accesorios 8/8.

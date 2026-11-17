@@ -57,5 +57,7 @@ export function firstImg(raw, w = 800) {
 export function thumb(p, w = 640) {
   const s = imgSrc(p);
   if (!s || !s.startsWith('https://media.rawg.io/media/') || /\/media\/(resize|crop)\//.test(s)) return s;
-  return s.replace('https://media.rawg.io/media/', `https://media.rawg.io/media/resize/${w}/-/`);
+  // RAWG solo sirve estos anchos (otros dan 404): se usa el primero que llegue al pedido
+  const ancho = [200, 420, 640, 1280].find(x => x >= w) || 1280;
+  return s.replace('https://media.rawg.io/media/', `https://media.rawg.io/media/resize/${ancho}/-/`);
 }

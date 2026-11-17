@@ -286,10 +286,13 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
     assert(n > 5, 'carátulas en la línea temporal: ' + n);
     const porAnio = await page.locator('.tl2-year').evaluateAll(ys => Math.max(...ys.map(y => y.querySelectorAll('.tl2-game').length)));
     assert(porAnio <= 3, 'como mucho 3 carátulas por año: ' + porAnio);
-    const pesadas = await page.locator('.tl2-game img').evaluateAll(is => is.filter(i => /media\.rawg\.io\/media\/(?!resize)/.test(i.src)).length);
+    const pesadas = await page.locator('.tl2-game img').evaluateAll(is => is.filter(i => /media\.rawg\.io\/media\/(?!resize\/(200|420|640|1280)\/)/.test(i.src)).length);
     assert(pesadas === 0, 'carátulas a tamaño completo en la línea temporal: ' + pesadas);
     await page.locator('.tl2-game').first().hover();
     await page.locator('.tl2-info').getByText(/·/).waitFor();
+    await page.locator('.tl2-hover').getByText('Pulsa para abrir la ficha').waitFor();   // ficha ampliada al pasar el ratón
+    const cols = await page.locator('.tl2-scroll').evaluate(el => [el.scrollWidth, el.clientWidth]);
+    assert(cols[0] >= cols[1] - 2, 'las columnas deben ocupar todo el ancho: ' + cols);
     await shot('linea-temporal');
     await page.locator('.tl2-game').first().click();
     await page.locator('.jp-panel').waitFor();

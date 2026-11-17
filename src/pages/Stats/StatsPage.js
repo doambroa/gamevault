@@ -83,7 +83,7 @@ export default function StatsPage() {
     return { p, js, n: js.length, t: js.filter(hecho).length, img: firstImg(p.imagenes) };
   }).filter(x => x.n > 0).sort((a, b) => b.n - a.n), [plats, lista]); // eslint-disable-line react-hooks/exhaustive-deps
   const maxC = porConsola[0]?.n || 1;
-  const tlPlat = tlPlatSel ?? (porConsola[0] ? String(porConsola[0].p.id) : '');
+  const tlPlat = tlPlatSel ?? '';
 
   // ── Año a año (con escala de tiempo de verdad: los años vacíos también salen) ──
   const anios = useMemo(() => {
@@ -377,11 +377,16 @@ function Timeline({ juegos, eje, hecho, activeId, onOpen, onMore, showPlat }) {
     el.classList.remove('gv-muted');
     el.textContent = `${j.nombre} · ${fmt(f)}${showPlat && j.plataformaNombre ? ' · ' + j.plataformaNombre : ''}${hecho(j) ? ' · ✔ terminado' : ''}`;
   };
-  const sobre = e => { const b = e.target.closest('[data-i]'); info(b ? Number(b.dataset.i) : null); };
+  const tarjeta = React.useRef(null);
+  const sobre = e => {
+    const b = e.target.closest('[data-i]');
+    info(b ? Number(b.dataset.i) : null);
+    if (b) tarjeta.current?.show(items[Number(b.dataset.i)], b); else tarjeta.current?.hide();
+  };
   if (!cols.length) return <p className="gv-muted">No hay juegos con esta fecha{eje === 'terminado' ? ' (aún no te has pasado ninguno de esta consola)' : ''}.</p>;
   return (
     <div className="tl2">
-      <div className="tl2-scroll" ref={ref} onMouseOver={sobre} onMouseLeave={() => info(null)} onFocus={sobre}>
+      <div className="tl2-scroll" ref={ref} onMouseOver={sobre} onMouseLeave={() => { info(null); tarjeta.current?.hide(); }} onFocus={sobre} onScroll={() => tarjeta.current?.hide()}>
         <div className="tl2-track">
           {cols.map(c => c.gap ? (
             <div key={c.key} className="tl2-gap" title={`Sin juegos: ${c.gap}`}><div className="tl2-tick"><span>{c.gap}</span></div></div>
@@ -407,7 +412,55 @@ function Timeline({ juegos, eje, hecho, activeId, onOpen, onMore, showPlat }) {
           ))}
         </div>
       </div>
+      <HoverCard ref={tarjeta} hecho={hecho} fmt={fmt}/>
       <div className="tl2-info gv-muted" ref={infoRef}>{ayuda}{sin > 0 && eje === 'terminado' ? ` · ${sin} sin terminar` : ''}</div>
     </div>
   );
 }
+
+/* Ficha ampliada al pasar el ratón por una carátula de la línea temporal (como en las versiones anteriores).
+ * Tiene su propio estado: al moverse por las carátulas solo se vuelve a pintar esta tarjeta. */
+const HoverCard = React.forwardRef(function HoverCard({ hecho, fmt }, ref) {
+  const [st, setSt] = useState(null);
+  const tm = React.useRef(null);
+  React.useImperativeHandle(ref, () => ({
+    show(item, el) {
+      clearTimeout(tm.current);
+      tm.current = setTimeout(() => {
+        const r = el.getBoundingClientRect();
+        const z = parseFloat(document.documentElement.style.zoom) || 1;   // zoom de CSS (web): pasar a px de la página
+        const W = 300, vw = window.innerWidth / z, vh = window.innerHeight / z;
+        const L = r.left / z, R = r.right / z, T = r.top / z;
+        let left = R + 12; if (left + W > vw - 8) left = L - W - 12; if (left < 8) left = Math.max(8, Math.min(vw - W - 8, L));
+        const top = Math.max(8, Math.min(T - 40, vh - 420));
+        setSt({ item, left, top });
+      }, 90);
+    },
+    hide() { clearTimeout(tm.current); setSt(null); },
+  }), []);
+  if (!st) return null;
+  const { j, f } = st.item;
+  const img = firstImg(j.imagenes, 640);
+  const cf = j._cf;
+  const filas = [
+    ['Consola', j.plataformaNombre],
+    ['Fecha', fmt(f)],
+    ['Género', j.genero],
+    ['Desarrolla', j.desarrolladora],
+    ['Historia', j.hltbMain > 0 ? `${Math.round(j.hltbMain * 10) / 10} h` : null],
+    ['Tu nota', j.valoracion ? `${j.valoracion}/10` : null],
+    ['Unidades', j.unidades > 1 ? `×${j.unidades}` : null],
+    ['Prestado a', j.prestadoA],
+  ].filter(x => x[1]);
+  return (
+    <div className="tl2-hover" style={{ left: st.left, top: st.top }} role="tooltip">
+      <div className="tl2-hover-img">{img ? <img src={img} alt=""/> : <Gamepad2 size={40}/>}</div>
+      <div className="tl2-hover-body">
+        <b>{j.nombre}</b>
+        {hecho(j) && <span className="tl2-hover-cf">✔ Terminado{cf.y ? ` en ${cf.y}` : ''}{cf.r != null ? ` · ${'★'.repeat(Math.min(5, Math.round(cf.r)))}` : ''}{cf.h ? ` · ${cf.h} h` : ''}</span>}
+        <dl>{filas.map(([k, v]) => <React.Fragment key={k}><dt>{k}</dt><dd>{v}</dd></React.Fragment>)}</dl>
+        <small>Pulsa para abrir la ficha</small>
+      </div>
+    </div>
+  );
+});

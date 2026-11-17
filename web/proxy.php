@@ -37,21 +37,45 @@ foreach (($req['headers'] ?? []) as $k => $v) {
   if (in_array(strtolower($k), $CAB_OK, true) && is_scalar($v)) $cabeceras[] = $k . ': ' . str_replace(["\r", "\n"], '', (string)$v);
 }
 
-$ch = curl_init($req['url']);
-curl_setopt_array($ch, [
-  CURLOPT_RETURNTRANSFER => true,
-  CURLOPT_FOLLOWLOCATION => true,
-  CURLOPT_MAXREDIRS      => 3,
-  CURLOPT_CONNECTTIMEOUT => 15,
-  CURLOPT_TIMEOUT        => 25,
-  CURLOPT_HTTPHEADER     => $cabeceras,
-  CURLOPT_ENCODING       => '',                       // acepta gzip
-  CURLOPT_PROTOCOLS      => CURLPROTO_HTTPS | ($extra ? CURLPROTO_HTTP : 0),
-]);
-if ($metodo === 'POST') { curl_setopt($ch, CURLOPT_POST, true); curl_setopt($ch, CURLOPT_POSTFIELDS, (string)($req['body'] ?? '')); }
-$texto = curl_exec($ch);
-if ($texto === false) { $err = curl_error($ch); curl_close($ch); echo json_encode(['error' => 'Sin conexión: ' . $err]); exit; }
-$estado = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-curl_close($ch);
+// Certificados raíz: los de XAMPP si curl/openssl no los tienen configurados
+function caBundle() {
+  foreach ([ini_get('curl.cainfo'), ini_get('openssl.cafile'), __DIR__ . '/cacert.pem', dirname(PHP_BINARY) . '/extras/ssl/cacert.pem',
+            'C:/xampp/php/extras/ssl/cacert.pem', 'C:/xampp/apache/bin/curl-ca-bundle.crt'] as $p) if ($p && @is_file($p)) return $p;
+  return null;
+}
+$ca = caBundle();
+if (function_exists('curl_init')) {
+  $ch = curl_init($req['url']);
+  $opt = [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_FOLLOWLOCATION => true,
+    CURLOPT_MAXREDIRS      => 3,
+    CURLOPT_CONNECTTIMEOUT => 15,
+    CURLOPT_TIMEOUT        => 25,
+    CURLOPT_HTTPHEADER     => $cabeceras,
+    CURLOPT_ENCODING       => '',                       // acepta gzip
+    CURLOPT_PROTOCOLS      => CURLPROTO_HTTPS | ($extra ? CURLPROTO_HTTP : 0),
+  ];
+  if ($ca) $opt[CURLOPT_CAINFO] = $ca;
+  curl_setopt_array($ch, $opt);
+  if ($metodo === 'POST') { curl_setopt($ch, CURLOPT_POST, true); curl_setopt($ch, CURLOPT_POSTFIELDS, (string)($req['body'] ?? '')); }
+  $texto = curl_exec($ch);
+  if ($texto === false) { $err = curl_error($ch); curl_close($ch); echo json_encode(['error' => 'Sin conexión: ' . $err]); exit; }
+  $estado = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+  curl_close($ch);
+} else {
+  // PHP sin la extensión curl (lo normal en XAMPP si no se activa en php.ini): se usa file_get_contents
+  $http = ['method' => $metodo, 'timeout' => 25, 'ignore_errors' => true, 'follow_location' => 1, 'max_redirects' => 3,
+           'header' => implode("\r\n", $cabeceras) . "\r\n", 'protocol_version' => 1.1];
+  $http['header'] .= "Connection: close\r\n";
+  if ($metodo === 'POST') $http['content'] = (string)($req['body'] ?? '');
+  $texto = @file_get_contents($req['url'], false, stream_context_create(['http' => $http, 'ssl' => $ca ? ['cafile' => $ca] : []]));
+  if ($texto === false) { echo json_encode(['error' => 'Sin conexión: ' . (error_get_last()['message'] ?? 'la petición falló')]); exit; }
+  $estado = 0;
+  // con redirecciones hay varias líneas de estado: vale la última
+  foreach (($http_response_header ?? []) as $h) if (preg_match('#^HTTP/\S+\s+(\d{3})#', $h, $m)) $estado = (int)$m[1];
+  // si el servidor mandó gzip aunque no se pidió
+  foreach (($http_response_header ?? []) as $h) if (stripos($h, 'Content-Encoding: gzip') === 0 && function_exists('gzdecode')) { $d = @gzdecode($texto); if ($d !== false) $texto = $d; }
+}
 if (strlen($texto) > 3000000) $texto = substr($texto, 0, 3000000);
 echo json_encode(['status' => $estado, 'text' => $texto], JSON_INVALID_UTF8_SUBSTITUTE);

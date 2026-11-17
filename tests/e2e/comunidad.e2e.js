@@ -127,6 +127,9 @@ const server = file => JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data
     const t = await md.innerText();
     assert(/Andrés Vieira/.test(t) && /David Constenla/.test(t) && /Tú/.test(t) && /Mariña Vieira/.test(t), t.replace(/\n/g, ' | '));
     await page.locator('.lz-mios').getByText('Mario Party Superstars').waitFor();   // «Tengo de otros»
+    await page.waitForTimeout(2500);
+    const rotas = await page.locator('.lz-cover img, .lz-mios img').evaluateAll(is => is.filter(i => i.complete && i.naturalWidth === 0).map(i => i.src));
+    assert(rotas.length === 0, 'carátulas rotas: ' + rotas.slice(0, 3).join(' '));
     await shot('prestamos');
     await page.getByPlaceholder('¿Qué juego buscas?').fill('');
   });

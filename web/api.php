@@ -202,7 +202,9 @@ function creditosDe($u) {
     foreach (($y['games'] ?? []) as $g) {
       if (!is_array($g) || empty($g['title'])) continue;
       $res[] = ['t' => $g['title'], 'y' => (int)$year, 'e' => 'terminado', 'r' => $g['rating'] ?? null, 'h' => $g['hours'] ?? null,
-        'd' => $g['date'] ?? null, 'x' => !empty($g['replayed']), 'c' => $g['comment'] ?? '', 's' => $g['song']['title'] ?? null];
+        'd' => $g['date'] ?? null, 'x' => !empty($g['replayed']), 'c' => $g['comment'] ?? '', 's' => $g['song']['title'] ?? null,
+        // la carátula que tiene en Créditos Finales (sus fotos locales van relativas a /creditos/)
+        'i' => !empty($g['image']) ? (preg_match('#^https?://#', $g['image']) ? $g['image'] : baseUrl() . '../creditos/' . ltrim($g['image'], '/')) : null];
     }
     foreach (['enCurso' => 'jugando', 'pendientes' => 'pendiente', 'abandonados' => 'abandonado', 'retomar' => 'retomar'] as $k => $estado) {
       foreach (($y['lists'][$k] ?? []) as $g) {

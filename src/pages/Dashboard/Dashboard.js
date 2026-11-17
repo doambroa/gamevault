@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Monitor, Gamepad2, Heart, BookOpen, TrendingUp, FileText, Loader } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader, Btn } from '../../components/ui/index';
-import { firstImg } from '../../utils/imgSrc';
+import { firstImg, thumb } from '../../utils/imgSrc';
 import GameCard from '../../components/GameCard';
 import { useCreditos, findCredito, estrellas } from '../../community/creditos';
 import { Trophy, Shuffle, ExternalLink, Sparkles } from 'lucide-react';
@@ -191,7 +191,7 @@ function Creditos({ juegos, nav }) {
         <div className="dash-cf-list">
           {esteAnio.slice(0,5).map((g,i) => { const j = porTitulo(g.t); return (
             <div key={i} className="dash-cf-row" onClick={j ? () => nav(`/plataformas/${j.plataformaId}`) : undefined} style={{cursor: j ? 'pointer' : 'default'}}>
-              <span className="dash-cf-img">{j && firstImg(j.imagenes) ? <img src={firstImg(j.imagenes)} alt=""/> : <Trophy size={14}/>}</span>
+              <span className="dash-cf-img">{(() => { const src = (j && firstImg(j.imagenes, 200)) || (g.i && thumb(g.i, 200)); return src ? <img src={src} alt="" loading="lazy"/> : <Trophy size={14}/>; })()}</span>
               <span className="dash-cf-t">{g.t}</span>
               <span className="jp-cf-stars">{estrellas(g.r)}</span>
             </div>); })}
