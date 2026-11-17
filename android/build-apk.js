@@ -28,7 +28,7 @@ const sh = (cmd, args, opts = {}) => execFileSync(cmd, args, { stdio: ['ignore',
 const step = m => console.log('▸ ' + m);
 
 const DL = {
-  'android.jar': 'https://github.com/Sable/android-platforms/raw/master/android-34/android.jar',
+  'android.jar': 'https://raw.githubusercontent.com/Sable/android-platforms/master/android-34/android.jar',
   'apktool.jar': 'https://github.com/iBotPeaches/Apktool/releases/download/v2.12.1/apktool_2.12.1.jar',
   'dex-tools.zip': 'https://github.com/pxb1988/dex2jar/releases/download/v2.4/dex-tools-v2.4.zip',
   'uber-signer.jar': 'https://github.com/patrickfav/uber-apk-signer/releases/download/v1.3.0/uber-apk-signer-1.3.0.jar',

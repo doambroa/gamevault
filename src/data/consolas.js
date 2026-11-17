@@ -112,3 +112,8 @@ export function imagenPorNombre(nombre) {
   if (!n) return null;
   return rutaImg(POR_NOMBRE[n] || ALIAS[n]);
 }
+
+/** Clave común para agrupar la misma consola aunque cada persona la llame distinto ("PS2", "PlayStation 2") */
+export const claveConsola = nombre => { const n = norm(nombre); return POR_NOMBRE[n] || ALIAS[n] || n || 'otras'; };
+const POR_SLUG = Object.fromEntries(CONSOLAS.map(c => [c.img, c]));
+export const consolaPorClave = clave => POR_SLUG[clave] || null;

@@ -11,7 +11,7 @@ const MODOS    = ['Un jugador','Multijugador local','Multijugador online','Coope
 const EMPTY    = {plataformaId:'',nombre:'',precio:'',genero:'',numeroDeJugadores:'',
   modoDeJuego:'',desarrolladora:'',fechaAdquisicion:'',fechaLanzamiento:'',
   region:'',idiomas:'',estado:'',comentarios:'',imagenes:[],
-  valoracion:'',prestadoA:'',fechaPrestamo:'',unidades:1,tituloOriginal:''};
+  valoracion:'',prestadoA:'',fechaPrestamo:'',unidades:1,tituloOriginal:'',prestadoUsuario:''};
 
 export default function JuegoForm({open, initial, onClose, onSave, plataformas=[], plataformaId, lockPlataforma}) {
   const [f, setF]             = useState(EMPTY);
@@ -262,12 +262,12 @@ export default function JuegoForm({open, initial, onClose, onSave, plataformas=[
               Préstamo
             </p>
             <div className="grid-2">
-              <Input label="Prestado a" value={f.prestadoA||''} onChange={s('prestadoA')} placeholder="Nombre o contacto"/>
+              <Input label="Prestado a" value={f.prestadoA||''} onChange={e => setF(v=>({...v,prestadoA:e.target.value,prestadoUsuario:''}))} placeholder="Nombre o contacto"/>
               <Input label="Fecha préstamo" type="date" value={f.fechaPrestamo||''} onChange={s('fechaPrestamo')}/>
             </div>
             {f.prestadoA && (
               <button
-                onClick={() => setF(v=>({...v,prestadoA:'',fechaPrestamo:''}))}
+                onClick={() => setF(v=>({...v,prestadoA:'',fechaPrestamo:'',prestadoUsuario:''}))}
                 style={{ marginTop:8, fontSize:11, fontWeight:600, cursor:'pointer',
                   display:'inline-flex', alignItems:'center', gap:5,
                   padding:'5px 10px', borderRadius:'var(--r)',

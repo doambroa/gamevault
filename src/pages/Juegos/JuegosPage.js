@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { imgSrc, parseImgs } from '../../utils/imgSrc';
-import { Plus, Gamepad2, Search, Edit2, Trash2, Download, Loader, Check, BookOpen, Upload, Clock, Layers, List } from 'lucide-react';
+import { Plus, Gamepad2, Search, Edit2, Trash2, Download, Loader, Check, BookOpen, Upload, Clock, Layers, List, LayoutGrid, Rows3, ArrowUpDown, ChevronDown } from 'lucide-react';
+import GameCard from '../../components/GameCard';
+import { useCreditos, findCredito } from '../../community/creditos';
 import { Btn, Badge, PageHeader, EmptyState, ConfirmModal, Input, Select, SkeletonList } from '../../components/ui/index';
 import JuegoForm  from './JuegoForm';
 import JuegoPanel from './JuegoPanel';
@@ -13,6 +15,12 @@ import { DuracionTh, DuracionCell } from '../../components/Duracion';
 import ImportDuracionesModal from './ImportDuracionesModal';
 
 const VISTA_KEY = 'gv_juegos_vista';
+const MODO_KEY = 'gv_juegos_modo';
+const loadModo = () => { try { return localStorage.getItem(MODO_KEY) === 'lista' ? 'lista' : 'cuadricula'; } catch { return 'cuadricula'; } };
+const ORDENES = [
+  ['nombre', 'Nombre'], ['fechaLanzamiento', 'Lanzamiento'], ['fechaAdquisicion', 'Adquisición'], ['precio', 'Precio'],
+  ['valoracion', 'Mi nota'], ['hltbMain', 'Duración (historia)'], ['hltbComplete', 'Duración (100%)'],
+];
 const loadVista = () => { try { return localStorage.getItem(VISTA_KEY) === 'todos' ? 'todos' : 'plataforma'; } catch { return 'plataforma'; } };
 
 const api = window.api;
@@ -52,12 +60,20 @@ export default function JuegosPage() {
   const [filters, setFilters] = useState(() => {
     const params = new URLSearchParams(location.search);
     return {
-      busqueda:'', plataformaId:'', genero: params.get('genero') || '', estado:'', region:'', anio:'', desarrolladora:'',
+      busqueda:'', plataformaId: params.get('plataforma') || '', genero: params.get('genero') || '', estado:'', region:'', anio:'', desarrolladora:'',
       prestado: params.get('prestados') === '1' ? '1' : ''
     };
   });
 
-  const { sorted, sortKey, sortDir, toggle, setSort } = useSort(juegos, 'nombre');
+  // Créditos Finales: qué juegos de la colección están terminados
+  const cf = useCreditos();
+  const [filtroCF, setFiltroCF] = useState(() => new URLSearchParams(location.search).get('cf') || '');            // '' | 'si' | 'no'
+  const visibles = React.useMemo(() => (!filtroCF || !cf.disponible ? juegos
+    : juegos.filter(j => (findCredito(cf.idx, j)?.e === 'terminado') === (filtroCF === 'si'))), [juegos, filtroCF, cf]);
+  const { sorted, sortKey, sortDir, toggle, setSort } = useSort(visibles, 'nombre');
+  const [modo, setModoState] = useState(loadModo);         // cuadrícula de carátulas | tabla
+  const setModo = m => { setModoState(m); try { localStorage.setItem(MODO_KEY, m); } catch {} };
+  const [masOpen, setMasOpen] = useState(false);
   const thP = { sortKey, sortDir, onToggle: toggle };
   // Vista: agrupada por plataforma o todos los juegos en una sola tabla (se recuerda)
   const [vista, setVistaState] = useState(loadVista);
@@ -84,10 +100,11 @@ export default function JuegosPage() {
   const sf = k => e => setFilters(f => ({...f, [k]: e.target.value}));
   const clear = () => {
     setFilters({ busqueda:'', plataformaId:'', genero:'', estado:'', region:'', anio:'', desarrolladora:'', prestado:'' });
+    setFiltroCF('');
     // Limpiar URL si venía con ?prestados=1
     if (location.search) navigate('/juegos', { replace: true });
   };
-  const hasF  = Object.values(filters).some(Boolean);
+  const hasF  = Object.values(filters).some(Boolean) || !!filtroCF;
 
   const save = async data => {
     if (editItem) await api.juegos.update({ id: editItem.id, ...data });
@@ -172,33 +189,29 @@ export default function JuegosPage() {
     filters.desarrolladora && { label:`Dev: ${filters.desarrolladora}`,  color:'cyan' },
     filters.plataformaId && { label:`Plataforma filtrada`,               color:'default' },
     filters.prestado     && { label:'Solo prestados',                    color:'gold' },
+    filtroCF             && { label: filtroCF === 'si' ? 'Terminados' : 'Sin terminar', color:'green' },
   ].filter(Boolean);
 
   return (
-    <div className="page" style={{ paddingRight: panelOpen ? 416 : 32, transition:'padding-right 0.3s' }}>
+    <div className={'page' + (panelOpen ? ' con-panel' : '')}>
       <PageHeader
         title="Juegos"
-        subtitle={`${juegos.length} juego${juegos.length!==1?'s':''}${vista==='plataforma' ? ` en ${Object.keys(grouped).length} plataforma${Object.keys(grouped).length!==1?'s':''}` : ''}`}
+        subtitle={`${visibles.length} juego${visibles.length!==1?'s':''}${vista==='plataforma' ? ` en ${Object.keys(grouped).length} plataforma${Object.keys(grouped).length!==1?'s':''}` : ''}`}
         actions={
           <div style={{display:'flex',gap:8,alignItems:'center'}}>
-            {/* Import collection button */}
-            <Btn variant="secondary" size="sm" onClick={() => setImportModalOpen(true)}
-              title="Importar colección desde CSV, Excel, TXT o JSON">
-              <Upload size={14}/> Importar colección
-            </Btn>
-            {/* Bulk cover import button */}
-            <Btn variant="secondary" size="sm" onClick={bulkImportCovers}
-              disabled={importing} title="Busca en RAWG las carátulas de todos los juegos que no tienen imagen">
-              {importing
-                ? <><Loader size={14} className="spin"/> Importando…</>
-                : importDone
-                ? <><Check size={14}/> Listo</>
-                : <><Download size={14}/> Importar carátulas</>}
-            </Btn>
-            <Btn variant="secondary" size="sm" onClick={() => setDurModal(true)}
-              title="Consulta en HowLongToBeat la duración de todos los juegos">
-              <Clock size={14}/> Importar duraciones
-            </Btn>
+            <div className="menu-wrap">
+              <Btn variant="secondary" onClick={() => setMasOpen(o => !o)} disabled={importing}>
+                {importing ? <><Loader size={14} className="spin"/> Importando…</> : importDone ? <><Check size={14}/> Listo</> : <><Download size={14}/> Importar <ChevronDown size={13}/></>}
+              </Btn>
+              {masOpen && <>
+                <div className="menu-scrim" onClick={() => setMasOpen(false)}/>
+                <div className="menu" onClick={() => setMasOpen(false)}>
+                  <button onClick={() => setImportModalOpen(true)}><Upload size={14}/><span><b>Importar colección</b><small>Desde CSV, Excel, Word, TXT o JSON</small></span></button>
+                  <button onClick={bulkImportCovers}><Download size={14}/><span><b>Importar carátulas</b><small>Busca la imagen de los juegos que no tienen</small></span></button>
+                  <button onClick={() => setDurModal(true)}><Clock size={14}/><span><b>Importar duraciones</b><small>Tiempos de HowLongToBeat para todos</small></span></button>
+                </div>
+              </>}
+            </div>
             <Btn onClick={() => { setEditItem(null); setShowForm(true); }}>
               <Plus size={16}/> Nuevo juego
             </Btn>
@@ -274,6 +287,13 @@ export default function JuegosPage() {
             Solo prestados
           </label>
         </div>
+        {cf.disponible && (
+          <Select label="Créditos Finales" value={filtroCF} onChange={e => setFiltroCF(e.target.value)} style={{minWidth:120}}>
+            <option value="">Todos</option>
+            <option value="si">Terminados</option>
+            <option value="no">Sin terminar</option>
+          </Select>
+        )}
         {hasF && (
           <div className="field" style={{justifyContent:'flex-end'}}>
             <label className="field-label">&nbsp;</label>
@@ -302,6 +322,23 @@ export default function JuegosPage() {
             <List size={13}/> Todos
           </button>
         </div>
+        <div className="seg" role="group" aria-label="Forma de verlos">
+          <button className={'seg-btn' + (modo === 'cuadricula' ? ' active' : '')} onClick={() => setModo('cuadricula')} title="Carátulas grandes">
+            <LayoutGrid size={13}/> Carátulas
+          </button>
+          <button className={'seg-btn' + (modo === 'lista' ? ' active' : '')} onClick={() => setModo('lista')} title="Tabla con todos los datos">
+            <Rows3 size={13}/> Tabla
+          </button>
+        </div>
+        {modo === 'cuadricula' && (
+          <div className="ordenar">
+            <ArrowUpDown size={13}/>
+            <select className="field-input field-select" value={sortKey} onChange={e => setSort(e.target.value, sortDir)} aria-label="Ordenar por">
+              {ORDENES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            </select>
+            <button className="icon-btn" onClick={() => setSort(sortKey, sortDir === 'asc' ? 'desc' : 'asc')} title={sortDir === 'asc' ? 'Ascendente' : 'Descendente'}>{sortDir === 'asc' ? '↑' : '↓'}</button>
+          </div>
+        )}
       </div>
 
       {/* Active filter pills */}
@@ -314,7 +351,7 @@ export default function JuegosPage() {
       )}
 
       {loading ? <SkeletonList n={5}/> :
-       juegos.length === 0 ? (
+       visibles.length === 0 ? (
         <EmptyState icon={<Gamepad2 size={52}/>}
           title={hasF ? 'Sin resultados' : 'Sin juegos aún'}
           description={hasF ? 'Prueba otros filtros. Pulsa en cualquier valor de la tabla para filtrar.' : 'Añade tu primer juego.'}
@@ -327,10 +364,23 @@ export default function JuegosPage() {
                 {plat} <span style={{color:'var(--text-3)',fontWeight:400}}>({items.length})</span>
               </p>
             )}
+            {modo === 'cuadricula' ? (
+              <div className="gcard-grid">
+                {items.map(j => (
+                  <GameCard key={j.id} juego={j} showPlat={vista === 'todos'} credito={findCredito(cf.idx, j)}
+                    active={panelOpen && panelJuego?.id === j.id} onClick={() => openPanel(j)}
+                    metric={['hltbMain','hltbExtra','hltbComplete'].includes(sortKey) ? sortKey : null}
+                    actions={<>
+                      <button className="icon-btn" title="Editar" onClick={()=>{setEditItem(j);setShowForm(true);}}><Edit2 size={13}/></button>
+                      <button className="icon-btn icon-btn-danger" title="Eliminar" onClick={()=>setDelId(j.id)}><Trash2 size={13}/></button>
+                    </>}/>
+                ))}
+              </div>
+            ) : (
             <div className="table-wrap">
               <table className="table">
                 <thead><tr>
-                  <th style={{width:64}}></th>
+                  <th style={{width:104}}></th>
                   <SortTh label="Nombre"        field="nombre"           {...thP}/>
                   {vista === 'todos' && <SortTh label="Plataforma" field="plataformaNombre" {...thP}/>}
                   <SortTh label="Género"         field="genero"           {...thP}/>
@@ -359,10 +409,10 @@ export default function JuegosPage() {
                         <td style={{padding:'4px 6px 4px 12px'}}>
                           {imgs[0]
                             ? <img src={imgSrc(imgs[0])}
-                                alt="" style={{width:52,height:38,objectFit:'cover',borderRadius:5,border:'1px solid var(--border)',display:'block'}}/>
-                            : <div style={{width:52,height:38,background:'var(--bg-3)',borderRadius:5,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--text-3)',fontSize:18}}>🎮</div>}
+                                alt="" loading="lazy" style={{width:92,height:60,objectFit:'cover',borderRadius:6,border:'1px solid var(--border)',display:'block'}}/>
+                            : <div style={{width:92,height:60,background:'var(--bg-3)',borderRadius:5,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--text-3)',fontSize:18}}>🎮</div>}
                         </td>
-                        <td className="td-name">{j.nombre}</td>
+                        <td className="td-name">{j.nombre}{findCredito(cf.idx, j)?.e === 'terminado' && <span className="cf-check" title="Terminado (Créditos Finales)"><Check size={11}/></span>}</td>
                         {vista === 'todos' && (
                           <td className="td-clickable" style={{whiteSpace:'nowrap'}}
                             onClick={e=>{e.stopPropagation(); setFilters(f => ({...f, plataformaId: String(j.plataformaId)}));}}
@@ -437,6 +487,7 @@ export default function JuegosPage() {
                 </tbody>
               </table>
             </div>
+            )}
           </div>
         ))
       )}

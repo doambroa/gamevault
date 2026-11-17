@@ -54,6 +54,7 @@ const unb64 = s => Buffer.from(s, 'base64').toString('utf8');
   });
   await ctx.route(/rawg\.io|wikipedia|wikimedia/, r => r.abort());   // sin red externa en las pruebas
   const page = await ctx.newPage(); CUR.page = page;
+  await page.addInitScript(() => { try { localStorage.setItem('gv_juegos_modo', 'lista'); } catch {} });   // estas pruebas usan la tabla
   page.on('console', m => { if (m.type() === 'error' && !/ERR_FAILED|net::/.test(m.text())) errors.push('console: ' + m.text()); });
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   page.on('dialog', d => { results.push(`   (alerta: "${d.message().slice(0, 100)}")`); d.accept(); });
@@ -72,7 +73,7 @@ const unb64 = s => Buffer.from(s, 'base64').toString('utf8');
     await page.locator('.ob-consola').first().waitFor();
     if (await page.locator('.ob-consola-tiene').count() !== 0) throw new Error('no debería haber consolas previas');
     await page.getByRole('button', { name: /Continuar sin consolas/ }).click();
-    await page.getByRole('heading', { name: 'Dashboard' }).waitFor({ timeout: 15000 });
+    await page.getByRole('heading', { name: 'Inicio' }).waitFor({ timeout: 15000 });
   });
   await check('Cargar una colección desde el móvil (Más → Importar JSON)', async () => {
     await page.locator('.nav-more').click();
@@ -81,7 +82,7 @@ const unb64 = s => Buffer.from(s, 'base64').toString('utf8');
     await (await fc).setFiles(path.join(__dirname, '../../') + 'tests/fixtures/coleccion-ejemplo.json');
     await page.getByRole('button', { name: /importar y sobrescribir/ }).click();
     await page.waitForTimeout(2500);
-    await page.locator('.nav-item', { hasText: 'Dashboard' }).click();
+    await page.locator('.nav-item', { hasText: 'Inicio' }).click();
     const t = await page.locator('.stats-grid').first().innerText();
     if (!/182/.test(t)) throw new Error('stats: ' + t);
   });
@@ -99,13 +100,13 @@ const unb64 = s => Buffer.from(s, 'base64').toString('utf8');
     const modal = page.locator('.modal-box');
     const mb = await modal.boundingBox();
     assert(mb.width >= 385, 'modal a pantalla completa: ' + mb.width);
-    await modal.locator('select').first().selectOption({ label: 'PS3' });
+    await modal.locator('select').first().selectOption({ label: 'PlayStation 3' });
     await modal.getByPlaceholder('Escribe el nombre del juego…').fill('Grand Theft Auto: San Andreas');
     await modal.locator('.field').filter({ has: page.locator('label.field-label', { hasText: /^Unidades$/ }) }).locator('input').fill('3');
     await shot('form-movil');
     await modal.getByRole('button', { name: /Crear juego/ }).click();
     await page.getByPlaceholder('Nombre…').fill('san andreas');
-    await page.locator('.filter-bar select').first().selectOption({ label: 'PS3' });
+    await page.locator('.filter-bar select').first().selectOption({ label: 'PlayStation 3' });
     await page.locator('td.td-name', { hasText: 'Grand Theft Auto: San Andreas' }).first().waitFor();
   });
   await check('HLTB y ventas a través del proxy nativo (protocolo X-GV-*)', async () => {
@@ -158,7 +159,7 @@ const unb64 = s => Buffer.from(s, 'base64').toString('utf8');
     const ws = XLSX.utils.aoa_to_sheet([['Juego', 'Consola', 'Cantidad'], ['Ecco the Dolphin', 'Mega Drive', 1], ['Columns', 'SMD', 2]]);
     const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'A');
     const f = path.join(TMP, 'lista.xlsx'); XLSX.writeFile(wb, f);
-    await page.getByRole('button', { name: /Importar colección/ }).click();
+    await page.locator('.menu-wrap > button').click(); await page.locator('.menu').getByText('Importar colección').click();
     const modal = page.locator('.modal-box');
     await modal.locator('input[type=file]').setInputFiles(f);
     await modal.getByText(/2 juegos detectados/).waitFor();
@@ -203,21 +204,24 @@ const unb64 = s => Buffer.from(s, 'base64').toString('utf8');
     await page.getByPlaceholder('Nombre…').fill('');
   });
   await check('Plataformas, detalle de consola y estadísticas en móvil sin desbordes', async () => {
-    await page.locator('.nav-item', { hasText: 'Plataformas' }).click();
+    await page.locator('.nav-item', { hasText: 'Consolas' }).click();
     await page.locator('.plat-card').first().waitFor(); await noHScroll(); await shot('plataformas');
     await page.locator('.plat-card').first().click();
     await page.getByText('Unidades en tu colección').waitFor(); await shot('plataforma-detalle');
-    await page.locator('.nav-item', { hasText: 'Estad' }).click();
-    await page.locator('.bubble-wrap').first().waitFor(); await shot('stats');
+    await page.locator('.nav-more').click(); await page.locator('.sidebar-mob', { hasText: 'Estadísticas' }).click();
+    await page.locator('.st-bar').first().waitFor(); await noHScroll(); await shot('stats');
+    await page.locator('.st-bar').first().click(); await page.locator('.st-sel .gcard').first().waitFor(); await noHScroll();
   });
   await check('PDF en móvil: mensaje claro (sólo escritorio)', async () => {
-    await page.locator('.nav-item', { hasText: 'Dashboard' }).click();
+    await page.locator('.nav-item', { hasText: 'Inicio' }).click();
     await page.getByRole('button', { name: /Exportar PDF/ }).click();
     await page.waitForTimeout(300);
   });
 
   await check('Móvil: Más → interruptor de tema claro', async () => {
     await page.locator('.nav-more').click();
+    const antes = await page.evaluate(() => document.documentElement.dataset.theme);
+    if (antes === 'light') await page.locator('.sidebar-footer .theme-switch').click();
     await page.locator('.sidebar-footer .theme-switch').click();
     assert(await page.evaluate(() => document.documentElement.dataset.theme) === 'light', 'no cambió');
     await page.waitForTimeout(500); await page.screenshot({ path: path.join(OUT, 'tema-claro-movil.png') });

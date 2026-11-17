@@ -110,6 +110,7 @@ async function initDb() {
     // GV_FAKE_HTTP sólo se usa en las pruebas automáticas (respuestas grabadas)
     http: process.env.GV_FAKE_HTTP ? require(process.env.GV_FAKE_HTTP) : electronHttp,
     onChange: e => { try { if (win && !win.isDestroyed()) win.webContents.send('gv:changed', e); } catch {} },
+    onDirty: () => sendDirty(),
     log,
   });
   // BD nueva → catálogo vacío: el usuario empieza desde cero (asistente inicial)
@@ -175,6 +176,8 @@ app.whenReady().then(async () => {
   createWindow();
 });
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+
+function sendDirty() { try { if (win && !win.isDestroyed()) win.webContents.send('gv:dirty'); } catch {} }
 
 // ─── IPC: todas las operaciones de datos vienen del núcleo compartido ─────────
 function registerCoreHandlers() {
@@ -334,6 +337,17 @@ ipcMain.handle('img:select', async () => {
     fs.copyFileSync(src,dest);
     return dest;
   });
+});
+
+// Lee una foto guardada por la app (para subirla a la cuenta al sincronizar). Solo imágenes.
+ipcMain.handle('img:read', async (_, p) => {
+  try {
+    p = path.normalize(String(p || ''));
+    const ext = path.extname(p).slice(1).toLowerCase();
+    const mime = { jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', gif:'image/gif', webp:'image/webp' }[ext];
+    if (!mime || !fs.existsSync(p) || fs.statSync(p).size > 25 * 1024 * 1024) return null;
+    return { mime, b64: fs.readFileSync(p).toString('base64') };
+  } catch { return null; }
 });
 
 // Controles de ventana

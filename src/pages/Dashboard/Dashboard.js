@@ -3,6 +3,10 @@ import { Monitor, Gamepad2, Heart, BookOpen, TrendingUp, FileText, Loader } from
 import { useNavigate } from 'react-router-dom';
 import { PageHeader, Btn } from '../../components/ui/index';
 import { firstImg } from '../../utils/imgSrc';
+import GameCard from '../../components/GameCard';
+import { useCreditos, findCredito, estrellas } from '../../community/creditos';
+import { Trophy, Shuffle, ExternalLink, Sparkles } from 'lucide-react';
+import { fmtHours } from '../../utils/hltb';
 
 const api = window.api;
 
@@ -11,7 +15,8 @@ export default function Dashboard() {
   const [exportingPdf, setExportingPdf] = useState(false);
   const nav = useNavigate();
 
-  useEffect(() => { api?.stats.get().then(setS).catch(()=>{}); }, []);
+  const [juegos, setJuegos] = useState([]);
+  useEffect(() => { api?.stats.get().then(setS).catch(()=>{}); api?.juegos.getAll({}).then(setJuegos).catch(()=>{}); }, []);
 
   const exportPdf = async () => {
     setExportingPdf(true);
@@ -24,7 +29,7 @@ export default function Dashboard() {
 
   return (
     <div className="page">
-      <PageHeader title="Dashboard" subtitle="Resumen de tu colección"
+      <PageHeader title="Inicio" subtitle="Resumen de tu colección"
         actions={
           <Btn variant="secondary" size="sm" onClick={exportPdf} disabled={exportingPdf}
             title="Exportar catálogo completo a PDF con carátulas y plataformas">
@@ -61,6 +66,19 @@ export default function Dashboard() {
         </div>
       )}
 
+      <Creditos juegos={juegos} nav={nav}/>
+
+      {/* Lo último que ha llegado, con las carátulas en grande */}
+      {juegos.length > 0 && (
+        <div style={{marginBottom:28}}>
+          <p className="section-title">Últimos en llegar</p>
+          <div className="dash-strip">
+            {juegos.slice().sort((a,b) => String(b.fechaAdquisicion||b.createdAt||'').localeCompare(String(a.fechaAdquisicion||a.createdAt||''))).slice(0,8)
+              .map(j => <GameCard key={j.id} juego={j} showPlat onClick={() => nav(`/plataformas/${j.plataformaId}`)}/>)}
+          </div>
+        </div>
+      )}
+
       {/* Por plataforma — each row clickable */}
       {s?.porPlataforma?.length > 0 && (
         <div style={{marginBottom:28}}>
@@ -84,27 +102,6 @@ export default function Dashboard() {
                 ))}
               </tbody>
             </table>
-          </div>
-        </div>
-      )}
-
-      {/* Genre bars */}
-      {s?.porGenero?.length > 0 && (
-        <div>
-          <p className="section-title">Por género</p>
-          <div className="genre-bars">
-            {s.porGenero.map((g,i) => (
-              <div key={g.genero} className="genre-row"
-                style={{cursor:'pointer'}}
-                onClick={() => nav(`/juegos?genero=${encodeURIComponent(g.genero)}`)}>
-                <span className="genre-label">{g.genero}</span>
-                <div className="genre-bar-bg">
-                  <div className="genre-bar-fill"
-                    style={{width:`${(g.n/s.porGenero[0].n)*100}%`,animationDelay:`${i*40}ms`}}/>
-                </div>
-                <span className="genre-count">{g.n}</span>
-              </div>
-            ))}
           </div>
         </div>
       )}
@@ -161,6 +158,54 @@ function StatCard({cls, icon, label, value, sub, onClick, hint}) {
           fontSize:10,color:'var(--text-3)',fontWeight:500,
           opacity:0,transition:'opacity .2s'}}
           className="stat-hint">{hint} →</span>
+      )}
+    </div>
+  );
+}
+
+/* Créditos Finales en el inicio: tu año de juegos terminados y una sugerencia de qué jugar ahora */
+function Creditos({ juegos, nav }) {
+  const cf = useCreditos();
+  const [semilla, setSemilla] = useState(() => Math.random());
+  if (!cf.disponible) return null;
+  const anio = new Date().getFullYear();
+  const terminados = cf.lista.filter(g => g.e === 'terminado');
+  const esteAnio = terminados.filter(g => Number(g.y) === anio).sort((a,b) => String(b.d||'').localeCompare(String(a.d||'')));
+  const jugando = cf.lista.filter(g => g.e === 'jugando');
+  const horas = esteAnio.reduce((n,g) => n + (Number(g.h)||0), 0);
+  // candidatos: de mi colección, sin terminar y que se pasan en menos de 15 h
+  const cand = juegos.filter(j => j.hltbMain > 0 && j.hltbMain < 15 && findCredito(cf.idx, j)?.e !== 'terminado');
+  const sug = cand.length ? cand[Math.floor(semilla * cand.length) % cand.length] : null;
+  const porTitulo = t => juegos.find(j => findCredito(cf.idx, j)?.t === t);
+  return (
+    <div className="dash-cf">
+      <div className="dash-cf-año">
+        <div className="dash-cf-h"><Trophy size={16}/> <b>Tu {anio} en Créditos Finales</b>
+          {cf.url && <a href={cf.url} target="_blank" rel="noreferrer" className="gv-link" style={{marginLeft:'auto'}}>Abrir <ExternalLink size={11}/></a>}</div>
+        <div className="dash-cf-nums">
+          <span><b>{esteAnio.length}</b> terminados</span>
+          {horas > 0 && <span><b>{Math.round(horas)}</b> horas</span>}
+          <span><b>{terminados.length}</b> en total</span>
+        </div>
+        {jugando.length > 0 && <p className="dash-cf-jug">Ahora: {jugando.map(g => g.t).join(' · ')}</p>}
+        <div className="dash-cf-list">
+          {esteAnio.slice(0,5).map((g,i) => { const j = porTitulo(g.t); return (
+            <div key={i} className="dash-cf-row" onClick={j ? () => nav(`/plataformas/${j.plataformaId}`) : undefined} style={{cursor: j ? 'pointer' : 'default'}}>
+              <span className="dash-cf-img">{j && firstImg(j.imagenes) ? <img src={firstImg(j.imagenes)} alt=""/> : <Trophy size={14}/>}</span>
+              <span className="dash-cf-t">{g.t}</span>
+              <span className="jp-cf-stars">{estrellas(g.r)}</span>
+            </div>); })}
+          {esteAnio.length === 0 && <p className="gv-muted">Este año aún no has apuntado ninguno. ¡A por el primero!</p>}
+        </div>
+        <button className="gv-link" style={{marginTop:8}} onClick={() => nav('/juegos?cf=no')}>Ver lo que tengo sin terminar →</button>
+      </div>
+      {sug && (
+        <div className="dash-cf-sug">
+          <div className="dash-cf-h"><Sparkles size={16}/> <b>¿Y si te pasas este?</b>
+            <button className="icon-btn" style={{marginLeft:'auto'}} title="Otro" onClick={() => setSemilla(Math.random())}><Shuffle size={14}/></button></div>
+          <GameCard juego={{...sug, plataformaNombre: sug.plataformaNombre}} showPlat onClick={() => nav(`/plataformas/${sug.plataformaId}`)}/>
+          <p className="gv-muted" style={{marginTop:8}}>Lo tienes y aún no lo has terminado: la historia dura unas {fmtHours(sug.hltbMain)}.</p>
+        </div>
       )}
     </div>
   );

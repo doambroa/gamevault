@@ -1,6 +1,7 @@
 // Genera src/core/keys.js con las claves de servicios externos SIN guardarlas en el repo.
 // Lee .env.local (o variables de entorno). Si no hay clave, la app pide una en Ajustes.
 //   .env.local →  RAWG_KEY=tu_clave
+//                 GV_SERVER=https://midominio.es/gamevault/
 const fs = require('fs');
 const path = require('path');
 const root = path.join(__dirname, '..');
@@ -14,7 +15,9 @@ for (const f of ['.env', '.env.local']) {
   } catch {}
 }
 const RAWG_KEY = process.env.RAWG_KEY || env.RAWG_KEY || '';
+// Servidor de cuentas por defecto para las apps de Windows y Android (p. ej. https://midominio.es/gamevault/)
+const GV_SERVER = process.env.GV_SERVER || env.GV_SERVER || '';
 fs.writeFileSync(path.join(root, 'src', 'core', 'keys.js'),
   '// Generado por scripts/gen-keys.js a partir de .env.local — no se sube al repo\n' +
-  `module.exports = { RAWG_KEY: ${JSON.stringify(RAWG_KEY)} };\n`);
+  `module.exports = { RAWG_KEY: ${JSON.stringify(RAWG_KEY)}, GV_SERVER: ${JSON.stringify(GV_SERVER)} };\n`);
 console.log(RAWG_KEY ? 'Clave de RAWG incluida en la compilación' : 'AVISO: sin RAWG_KEY en .env.local (la app pedirá una en Ajustes)');

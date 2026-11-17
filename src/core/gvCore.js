@@ -30,7 +30,7 @@ const SCHEMA = `
     nombre TEXT NOT NULL, precio REAL, genero TEXT, numeroDeJugadores INTEGER,
     modoDeJuego TEXT, desarrolladora TEXT, fechaAdquisicion TEXT, fechaLanzamiento TEXT,
     region TEXT, idiomas TEXT, estado TEXT, comentarios TEXT, imagenes TEXT DEFAULT '[]',
-    valoracion INTEGER, prestadoA TEXT, fechaPrestamo TEXT,
+    valoracion INTEGER, prestadoA TEXT, fechaPrestamo TEXT, prestadoUsuario TEXT,
     unidades INTEGER DEFAULT 1, tituloOriginal TEXT, tituloIngles TEXT, hltbName TEXT,
     hltbMain REAL, hltbExtra REAL, hltbComplete REAL, hltbFetched TEXT,
     ventasTotal REAL, ventasJson TEXT, ventasFetched TEXT,
@@ -63,6 +63,7 @@ const MIGRATIONS = {
     ['hltbMain', 'REAL'], ['hltbExtra', 'REAL'], ['hltbComplete', 'REAL'], ['hltbFetched', 'TEXT'],
     ['ventasTotal', 'REAL'], ['ventasJson', 'TEXT'], ['ventasFetched', 'TEXT'],
     ['tituloOriginal', 'TEXT'], ['tituloIngles', 'TEXT'], ['hltbName', 'TEXT'],
+    ['prestadoUsuario', 'TEXT'],
   ],
   deseos: [],
   accesorios: [],
@@ -73,7 +74,7 @@ const PLAT_FIELDS = ['nombre', 'marca', 'modelo', 'tipo', 'fechaAdquisicion', 'f
   'unidadesVendidas', 'comentarios', 'imagenes', 'unidades'];
 const JUEGO_FIELDS = ['plataformaId', 'nombre', 'precio', 'genero', 'numeroDeJugadores', 'modoDeJuego',
   'desarrolladora', 'fechaAdquisicion', 'fechaLanzamiento', 'region', 'idiomas', 'estado', 'comentarios',
-  'imagenes', 'valoracion', 'prestadoA', 'fechaPrestamo', 'unidades', 'tituloOriginal'];
+  'imagenes', 'valoracion', 'prestadoA', 'fechaPrestamo', 'unidades', 'tituloOriginal', 'prestadoUsuario'];
 const ACC_FIELDS = ['plataformaId', 'nombre', 'tipo', 'unidades', 'precio', 'estado', 'fechaAdquisicion',
   'comentarios', 'imagenes'];
 const DESEO_FIELDS = ['nombre', 'plataforma', 'genero', 'desarrolladora', 'fechaLanzamiento', 'precioEstimado',
@@ -102,7 +103,7 @@ function clean(field, v) {
   return v;
 }
 
-function createCore({ SQL, bytes, persist = () => {}, http = null, onChange = () => {}, log = () => {} }) {
+function createCore({ SQL, bytes, persist = () => {}, http = null, onChange = () => {}, onDirty = () => {}, log = () => {} }) {
   const db = bytes ? new SQL.Database(bytes) : new SQL.Database();
   const isNew = !bytes;
 
@@ -144,17 +145,17 @@ function createCore({ SQL, bytes, persist = () => {}, http = null, onChange = ()
   save();
 
   // ── Importar / exportar colección ────────────────────────────────────────
-  function importColeccion(data, { replace = false } = {}) {
+  function importColeccion(data, { replace = false, todo = false } = {}) {
     if (!data || typeof data !== 'object') throw new Error('Fichero no válido');
     const plats = Array.isArray(data.plataformas) ? data.plataformas : [];
     const juegos = Array.isArray(data.juegos) ? data.juegos : [];
     const deseos = Array.isArray(data.deseos) ? data.deseos : [];
     const accesorios = Array.isArray(data.accesorios) ? data.accesorios : [];
-    if (!plats.length && !juegos.length && !deseos.length) throw new Error('El fichero no contiene plataformas, juegos ni deseos');
+    if (!todo && !plats.length && !juegos.length && !deseos.length) throw new Error('El fichero no contiene plataformas, juegos ni deseos');
     // Sin claves foráneas durante la importación: INSERT OR REPLACE en una plataforma
     // borraría en cascada sus juegos, y un juego huérfano abortaría todo el fichero.
     db.run('PRAGMA foreign_keys = OFF');
-    try { return importBody(plats, juegos, deseos, accesorios, replace); }
+    try { return importBody(plats, juegos, deseos, accesorios, replace, todo); }
     finally {
       db.run('DELETE FROM juegos WHERE plataformaId NOT IN (SELECT id FROM plataformas)');
       db.run('DELETE FROM accesorios WHERE plataformaId NOT IN (SELECT id FROM plataformas)');
@@ -162,11 +163,11 @@ function createCore({ SQL, bytes, persist = () => {}, http = null, onChange = ()
       save();
     }
   }
-  function importBody(plats, juegos, deseos, accesorios, replace) {
+  function importBody(plats, juegos, deseos, accesorios, replace, todo) {
     return batch(() => {
       if (replace) {
         db.run('DELETE FROM juegos'); db.run('DELETE FROM accesorios'); db.run('DELETE FROM plataformas');
-        if (deseos.length) db.run('DELETE FROM deseos');
+        if (deseos.length || todo) db.run('DELETE FROM deseos');
       }
       const ins = (table, row) => {
         const valid = cols(table);
@@ -193,7 +194,7 @@ function createCore({ SQL, bytes, persist = () => {}, http = null, onChange = ()
     });
   }
   const exportData = () => ({
-    version: '1.9', app: 'GameVault', exportedAt: new Date().toISOString(),
+    version: '2.0', app: 'GameVault', exportedAt: new Date().toISOString(),
     plataformas: all('SELECT * FROM plataformas'),
     juegos: all('SELECT * FROM juegos'),
     deseos: all('SELECT * FROM deseos'),
@@ -271,6 +272,8 @@ function createCore({ SQL, bytes, persist = () => {}, http = null, onChange = ()
       [r ? r.total : null, r ? JSON.stringify(r) : null, id]);
   }
 
+  const dirty = () => { try { onDirty(); } catch {} };
+
   // Cola en segundo plano: una petición cada ~1,2 s para no saturar HLTB/VGChartz
   const queue = [];
   let working = false;
@@ -292,8 +295,8 @@ function createCore({ SQL, bytes, persist = () => {}, http = null, onChange = ()
     enqueue(async () => {
       const j = one('SELECT * FROM juegos WHERE id=?', [id]);
       if (!j) return;
-      if (doH) { try { saveHltb(id, await fetchHltbFor(j)); onChange({ type: 'juego', id }); } catch (e) { log('[HLTB] auto:', e.message); } }
-      if (doV) { try { saveVentas(id, await fetchVentasFor(j)); onChange({ type: 'juego', id }); } catch (e) { log('[Ventas] auto:', e.message); } }
+      if (doH) { try { saveHltb(id, await fetchHltbFor(j)); onChange({ type: 'juego', id }); dirty(); } catch (e) { log('[HLTB] auto:', e.message); } }
+      if (doV) { try { saveVentas(id, await fetchVentasFor(j)); onChange({ type: 'juego', id }); dirty(); } catch (e) { log('[Ventas] auto:', e.message); } }
     });
   }
 
@@ -359,7 +362,9 @@ function createCore({ SQL, bytes, persist = () => {}, http = null, onChange = ()
     },
     'j:update': d => {
       if (!d || !d.id) throw new Error('Falta el id');
-      const before = one('SELECT nombre, tituloOriginal FROM juegos WHERE id=?', [d.id]);
+      const before = one('SELECT * FROM juegos WHERE id=?', [d.id]);
+      if (!before) throw new Error('El juego no existe');
+      d = { ...before, ...d };                                   // lo que no llega del formulario se conserva
       updateRow('juegos', JUEGO_FIELDS, d);
       // Si cambia el nombre o el título original, los datos de duración/ventas ya no valen
       if (before && (clean('nombre', d.nombre) !== before.nombre || clean('tituloOriginal', d.tituloOriginal) !== (before.tituloOriginal ?? null))) {
@@ -373,12 +378,13 @@ function createCore({ SQL, bytes, persist = () => {}, http = null, onChange = ()
     'j:updateCovers': ({ id, imagenes }) => { run(`UPDATE juegos SET imagenes=?, updatedAt=datetime('now') WHERE id=?`, [clean('imagenes', imagenes), id]); return { ok: true }; },
     'j:prestados': () => all(`SELECT j.*,p.nombre plataformaNombre FROM juegos j LEFT JOIN plataformas p ON j.plataformaId=p.id
       WHERE j.prestadoA IS NOT NULL AND j.prestadoA != '' ORDER BY j.fechaPrestamo DESC`),
-    'j:prestar': ({ id, prestadoA, fechaPrestamo }) => {
-      run(`UPDATE juegos SET prestadoA=?,fechaPrestamo=?,updatedAt=datetime('now') WHERE id=?`, [clean('prestadoA', prestadoA), clean('fechaPrestamo', fechaPrestamo), id]);
+    'j:prestar': ({ id, prestadoA, fechaPrestamo, prestadoUsuario }) => {
+      run(`UPDATE juegos SET prestadoA=?,fechaPrestamo=?,prestadoUsuario=?,updatedAt=datetime('now') WHERE id=?`,
+        [clean('prestadoA', prestadoA), clean('fechaPrestamo', fechaPrestamo), clean('prestadoUsuario', prestadoUsuario), id]);
       return one('SELECT * FROM juegos WHERE id=?', [id]);
     },
     'j:devolver': id => {
-      run(`UPDATE juegos SET prestadoA=NULL,fechaPrestamo=NULL,updatedAt=datetime('now') WHERE id=?`, [id]);
+      run(`UPDATE juegos SET prestadoA=NULL,fechaPrestamo=NULL,prestadoUsuario=NULL,updatedAt=datetime('now') WHERE id=?`, [id]);
       return one('SELECT * FROM juegos WHERE id=?', [id]);
     },
     // keepOnMiss: si no se encuentra, conservar los tiempos que hubiera (importación masiva)
@@ -479,6 +485,9 @@ function createCore({ SQL, bytes, persist = () => {}, http = null, onChange = ()
 
     // Datos
     'data:export': () => exportData(),
+    // Sincronización con la cuenta: la colección entera sube / baja tal cual (no marca cambios pendientes)
+    'sync:export': () => exportData(),
+    'sync:import': obj => ({ ok: true, ...importColeccion(obj, { replace: true, todo: true }) }),
     'data:import': (obj, opts) => ({ ok: true, ...importColeccion(obj, opts || { replace: true }) }),
     // Borrar la colección (todo o por partes). Los juegos pertenecen a una plataforma:
     // borrar plataformas implica borrar también sus juegos. Los ajustes se conservan.
@@ -504,10 +513,14 @@ function createCore({ SQL, bytes, persist = () => {}, http = null, onChange = ()
     },
   };
 
+  // Operaciones que cambian la colección → avisar para que se sincronice con la cuenta
+  const MUTA = /^(?:[pjad]:(?:create|update|delete|updateCovers|prestar|devolver|move|hltbFetch|ventasFetch)|data:(?:import|wipe))$/;
   async function handle(channel, ...args) {
     const fn = handlers[channel];
     if (!fn) throw new Error('Operación desconocida: ' + channel);
-    return fn(...args);
+    const r = await fn(...args);
+    if (MUTA.test(channel)) dirty();
+    return r;
   }
 
   return { db, isNew, all, one, run, handle, handlers, importColeccion, exportData, scheduleEnrich, _queue: queue };

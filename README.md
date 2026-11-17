@@ -1,4 +1,4 @@
-# 🎮 GameVault 1.9.2 — Guía de uso
+# 🎮 GameVault 2.0 — Guía de uso
 
 Tu colección de videojuegos y consolas: duración (HowLongToBeat), ventas, estadísticas y catálogo en PDF. Para Windows, Android e iPhone.
 
@@ -33,6 +33,31 @@ Si bajas el proyecto con *Code → Download ZIP* (o `git clone`), descomprímelo
 Las bases de datos de versiones anteriores se actualizan solas al abrir la 1.8 (se añaden los campos nuevos sin perder nada).
 
 ---
+
+## Novedades de la 2.0
+
+- **Cuentas de usuario** (las mismas que Créditos Finales si está instalada al lado en el servidor). Con cuenta, la colección se guarda en el servidor y es la misma en Windows, Android, iPhone y la web: cada cambio se sube solo a los pocos segundos. Si dos aparatos cambian a la vez, la app pregunta cuál conservar (nunca pisa nada sin avisar). Sin conexión se sigue usando y sube los cambios al volver.
+- **Comunidad**: lista de gente con foto y nombre; pulsando en alguien ves su colección (solo lectura) con buscador, sus consolas, su lista de deseos y lo que se ha pasado. En «Mi cuenta» cada uno elige si enseña precios, comentarios y deseos (por defecto, todo visible).
+- **Zona de préstamos**: los juegos de todos agrupados por consola y juego, con la ficha de cada persona que lo tiene, si está en casa o quién lo tiene. Pestaña «Préstamos en curso» con la tabla de quién tiene el juego de quién. Puedes prestar tus juegos a alguien de la comunidad o a cualquier otra persona y marcar las devoluciones.
+- **Perfiles por reclamar**: colecciones cargadas antes de que su dueño tenga cuenta (p. ej. de una tabla compartida). El administrador (en `config.php`) ve en Comunidad un enlace para cada uno; al abrirlo y entrar, los juegos pasan a su colección con los préstamos que tuvieran.
+- **Créditos Finales integrado**: cada juego sabe si te lo has pasado (etiqueta «Terminado», nota, horas, comentario y canción en la ficha), filtro «Terminados / Sin terminar», «Tu año en Créditos Finales» y «¿Y si te pasas este?» en el Inicio, y «Cuándo me los pasé» en Estadísticas.
+- **Carátulas grandes**: Juegos se ve por defecto como cuadrícula de carátulas (la tabla sigue a un clic), la ficha muestra la imagen entera y se puede ver a pantalla completa.
+- **Estadísticas nuevas**: cifras de cabecera, juegos por consola (con la parte terminada en verde), «Año a año» con escala de tiempo real, duración por tramos y géneros. Todo se pulsa y lo pulsado se abre debajo con sus carátulas.
+- **Tema según el sistema** por defecto; el interruptor sigue ahí y «Auto» vuelve al del sistema.
+- **Icono nuevo** («Vitrina»). Las otras propuestas están en `buildres/propuestas-2/`; para cambiarlo: `sh scripts/aplicar-icono.sh buildres/propuestas-2/C2-intercambio.svg`.
+
+### Servidor de cuentas (XAMPP)
+
+Copia `dist/web` a `htdocs/gamevault` (la versión web incluye `api.php`). Los datos se guardan en `htdocs/gamevault/data` (se crea sola y está bloqueada desde el navegador) y las fotos subidas en `uploads/`. Si existe `htdocs/creditos`, las cuentas son las de Créditos Finales. Opcional, `htdocs/gamevault/config.php`:
+
+```php
+<?php return [
+  'admins' => ['soiber'],        // quién ve los enlaces de «perfiles por reclamar»
+  'invite_code' => '',           // si lo rellenas, hace falta para registrarse
+];
+```
+
+Las apps de Windows y Android usan el servidor puesto en `.env.local` al compilar (`GV_SERVER=https://midominio.es/gamevault/`); en la pantalla de entrar se puede cambiar.
 
 ## Novedades de la 1.9.2
 

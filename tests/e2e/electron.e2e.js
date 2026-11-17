@@ -49,7 +49,7 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
     await page.getByText('Xbox Series S', { exact: true }).click();
     await page.getByText('PS Vita', { exact: true }).click();
     await page.getByRole('button', { name: /Añadir 2 consolas/ }).click();
-    await page.getByRole('heading', { name: 'Dashboard' }).waitFor({ timeout: 15000 });
+    await page.getByRole('heading', { name: 'Inicio' }).waitFor({ timeout: 15000 });
   });
   await check('Dashboard recién instalado: 2 plataformas y 0 juegos', async () => {
     await page.waitForTimeout(500);
@@ -61,18 +61,18 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
     const ps = await page.evaluate(() => window.api.plataformas.getAll());
     const vita = ps.find(p => p.nombre === 'PS Vita');
     assert(JSON.parse(vita.imagenes)[0] === './consolas/ps-vita.png', 'ruta: ' + vita.imagenes);
-    await page.getByRole('button', { name: 'Plataformas' }).click();
+    await page.getByRole('button', { name: 'Consolas', exact: true }).click();
     const img = page.locator('.plat-card', { hasText: 'PS Vita' }).locator('img');
     await img.waitFor({ timeout: 8000 });
     assert(await img.evaluate(i => i.complete && i.naturalWidth === 480), 'no se carga la imagen');
-    await page.getByRole('button', { name: 'Dashboard' }).click();
+    await page.getByRole('button', { name: 'Inicio', exact: true }).click();
   });
   await check('Cargar una colección con "Importar JSON" (24 consolas, 182 juegos)', async () => {
     await app.evaluate(({ dialog }, f) => { dialog.showOpenDialog = async () => ({ filePaths: [f] }); }, path.join(APP, 'tests/fixtures/coleccion-ejemplo.json'));
     await page.getByRole('button', { name: /Importar JSON/ }).click();
     await page.getByRole('button', { name: /importar y sobrescribir/ }).click();
     await page.waitForTimeout(2000);
-    await page.getByRole('button', { name: 'Dashboard' }).click();
+    await page.getByRole('button', { name: 'Inicio', exact: true }).click();
     await page.waitForTimeout(500);
     const txt = await page.locator('.stats-grid').first().innerText();
     assert(/24/.test(txt) && /182/.test(txt), 'stats: ' + txt.replace(/\n/g, ' '));
@@ -86,7 +86,7 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
 
   // ── Plataformas + Unidades ────────────────────────────────────────────────
   await check('Plataforma nueva con Unidades = 2 y se ve en el detalle', async () => {
-    await page.getByRole('button', { name: 'Plataformas' }).click();
+    await page.getByRole('button', { name: 'Consolas', exact: true }).click();
     await page.getByRole('button', { name: /Nueva plataforma/ }).click();
     const modal = page.locator('.modal-box');
     await modal.locator('input').first().fill('PlayStation 2 Slim');
@@ -137,6 +137,18 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
   });
 
   // ── Juego moderno: gráfica ────────────────────────────────────────────────
+  await check('Juegos: por defecto carátulas grandes (cuadrícula) y se puede pasar a tabla', async () => {
+    await page.getByRole('button', { name: 'Juegos', exact: true }).click();
+    await page.evaluate(() => localStorage.removeItem('gv_juegos_modo'));   // el perfil de Electron se comparte entre ejecuciones
+    await page.getByRole('button', { name: 'Consolas', exact: true }).click();
+    await page.getByRole('button', { name: 'Juegos', exact: true }).click();
+    await page.locator('.gcard').first().waitFor();
+    const w = await page.locator('.gcard-img').first().evaluate(e => e.getBoundingClientRect().width);
+    assert(w >= 200, 'la carátula mide ' + w + ' px');
+    await shot('juegos-caratulas');
+    await page.getByRole('button', { name: /Tabla/ }).click();
+    await page.locator('table.table').first().waitFor();
+  });
   await check('Juegos → Nuevo juego "Mario Kart 8 Deluxe" en Switch', async () => {
     await page.getByRole('button', { name: 'Juegos', exact: true }).click();
     await page.getByRole('button', { name: /Nuevo juego/ }).click();
@@ -202,7 +214,7 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
   await check('Importar colección desde TXT: juegos sin plataforma → Dreamcast', async () => {
     const f = path.join(DATA, 'lista.txt');
     fs.writeFileSync(f, '- Shenmue\n- Crazy Taxi\n- Crazy Taxi\nSoulcalibur | Dreamcast\n');
-    await page.getByRole('button', { name: /Importar colección/ }).click();
+    await page.locator('.menu-wrap > button').click(); await page.locator('.menu').getByText('Importar colección').click();
     const modal = page.locator('.modal-box');
     await modal.locator('input[type=file]').setInputFiles(f);
     await modal.getByText(/3 juegos detectados/).waitFor();
@@ -225,7 +237,7 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
 
   // ── Lista de deseos ───────────────────────────────────────────────────────
   await check('Deseos: añadir y mover a la colección', async () => {
-    await page.getByRole('button', { name: 'Lista de Deseos' }).click();
+    await page.getByRole('button', { name: 'Lista de deseos' }).click();
     await page.getByRole('button', { name: /Añadir deseo/ }).click();
     const modal = page.locator('.modal-box');
     await modal.getByPlaceholder('Nombre del juego…').fill('Jet Set Radio');
@@ -238,14 +250,18 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
   });
 
   // ── Estadísticas ──────────────────────────────────────────────────────────
-  await check('Estadísticas: burbujas, barras, tarjetas y timeline', async () => {
+  await check('Estadísticas: cifras, barras por consola y año a año; al pulsar salen las carátulas', async () => {
     await page.getByRole('button', { name: 'Estadísticas' }).click();
-    await page.locator('.bubble-wrap').first().waitFor();
-    await page.getByRole('button', { name: /Barras/ }).click();
-    await page.locator('.bar-row').first().click();
-    await page.locator('.tl-item').first().waitFor();
-    await shot('timeline');
-    await page.getByRole('button', { name: /Volver/ }).click();
+    await page.locator('.st-kpi').first().waitFor();
+    await page.locator('.st-bar', { hasText: 'Nintendo 64' }).first().click();
+    await page.locator('.st-sel .gcard').first().waitFor();
+    const n = await page.locator('.st-sel .gcard').count();
+    assert(n > 5, 'carátulas: ' + n);
+    await page.locator('.st-year:not(.vacio)').first().waitFor();
+    assert(await page.locator('.st-year').count() >= 10, 'años');
+    await shot('estadisticas');
+    await page.locator('.st-year:not(.vacio)').last().click();
+    await page.locator('.st-sel h2').getByText(/salieron/).waitFor();
   });
 
   // ── v1.5: título en castellano, vistas, orden por duración, zoom, importar duraciones ──
@@ -280,7 +296,7 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
     assert(await page.locator('table.table').count() === 1, 'una sola tabla');
     assert(await page.locator('th', { hasText: 'Plataforma' }).count() >= 1, 'columna plataforma');
     await shot('vista-todos');
-    await page.getByRole('button', { name: 'Dashboard' }).click();
+    await page.getByRole('button', { name: 'Inicio', exact: true }).click();
     await page.getByRole('button', { name: 'Juegos', exact: true }).click();
     await page.waitForTimeout(400);
     assert(await page.locator('table.table').count() === 1, 'la vista se recuerda');
@@ -310,7 +326,7 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
     await page.getByRole('button', { name: /Por plataforma/ }).click();
   });
   await check('Plataformas: cada tarjeta muestra el nº de juegos', async () => {
-    await page.getByRole('button', { name: 'Plataformas' }).click();
+    await page.getByRole('button', { name: 'Consolas', exact: true }).click();
     const t = await page.locator('.plat-card', { hasText: 'Nintendo 64' }).innerText();
     const fx = require(path.join(APP, 'tests/fixtures/coleccion-ejemplo.json'));
     const n64 = fx.plataformas.find(p => p.nombre === 'Nintendo 64');
@@ -318,40 +334,25 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
     assert(new RegExp(esperado + '\\s*juegos?').test(t), `esperaba ${esperado} juegos: ` + JSON.stringify(t));
     await shot('plataformas-contador');
   });
-  await check('Estadísticas: el zoom muestra duración, ventas y valoración; clic abre el detalle', async () => {
+  await check('Estadísticas → ficha del juego y editar: el cambio se ve al momento', async () => {
     await page.getByRole('button', { name: 'Estadísticas' }).click();
-    await page.getByRole('button', { name: /Barras/ }).click();
-    await page.locator('.bar-row', { hasText: 'Switch' }).click();
-    const item = page.locator('.tl-item', { hasText: 'Booster Course' });
-    await item.scrollIntoViewIfNeeded();
-    await item.hover();
-    const tip = page.locator('.game-tooltip');
-    await tip.waitFor();
-    const t = await tip.innerText();
-    assert(/12h/.test(t) && /20h/.test(t) && /50h/.test(t), 'duración en zoom: ' + t.replace(/\n/g, ' '));
-    assert(/71,5 M/.test(t), 'ventas en zoom');
-    assert(/9\/10/.test(t), 'valoración en zoom');
-    await shot('zoom-timeline');
-    await item.click();
-    await page.locator('.jp-panel.jp-panel-open').waitFor();
-    await page.locator('.jp-panel').getByText('Booster Course').first().waitFor();
-  });
-  await check('Editar desde Estadísticas: cambiar la valoración se ve al momento en el zoom', async () => {
-    await page.locator('.jp-panel').getByRole('button', { name: /Editar/ }).click();
+    await page.locator('.st-bar', { hasText: 'Switch' }).first().click();
+    await page.locator('.st-sel .gcard', { hasText: 'Booster Course' }).click();
+    const panel = page.locator('.jp-panel');
+    await panel.getByText('71,5 M').waitFor({ timeout: 10000 });
+    await panel.getByRole('button', { name: /Editar/ }).click();
     const modal = page.locator('.modal-box');
     await modal.getByRole('button', { name: '6', exact: true }).click();
     await modal.getByRole('button', { name: /Guardar cambios/ }).click();
-    await page.locator('.jp-panel').getByText('6/10').waitFor();
-    await page.locator('.jp-panel .jp-close').click();
-    const item = page.locator('.tl-item', { hasText: 'Booster Course' });
-    await page.mouse.move(5, 5); await item.hover();
-    await page.locator('.game-tooltip').getByText('6/10').waitFor();
-    await page.getByRole('button', { name: /Volver/ }).click();
+    await panel.getByText('6/10').waitFor();
+    await page.locator('.st-sel .gcard', { hasText: 'Booster Course' }).locator('.gcard-nota', { hasText: '6' }).waitFor();
+    await shot('estadisticas-panel');
+    await panel.locator('.jp-close').click();
   });
   await check('Importar duraciones: aviso previo, progreso y resumen (sin borrar los no encontrados)', async () => {
     await page.getByRole('button', { name: 'Juegos', exact: true }).click();
     // reducir a pocos juegos para que la prueba sea rápida: se cancela tras unos segundos
-    await page.getByRole('button', { name: /Importar duraciones/ }).click();
+    await page.locator('.menu-wrap > button').click(); await page.locator('.menu').getByText('Importar duraciones').click();
     const modal = page.locator('.modal-box');
     await modal.getByText(/sobrescribirán todos los tiempos que hayan cambiado/).waitFor();
     await shot('importar-duraciones-aviso');
@@ -389,7 +390,7 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
   });
   await check('Exportar PDF del catálogo', async () => {
     await page.evaluate(() => window.api.plataformas.create({ nombre: 'ZZ Prueba imagen', marca: 'Nintendo', tipo: 'Sobremesa', imagenes: ['./consolas/nintendo-64.png'] }));
-    await page.getByRole('button', { name: 'Dashboard' }).click();
+    await page.getByRole('button', { name: 'Inicio', exact: true }).click();
     await page.getByRole('button', { name: /Exportar PDF/ }).click();
     await page.getByRole('button', { name: /Exportar PDF/ }).waitFor({ timeout: 60000 });
     for (let i = 0; i < 60 && !fs.existsSync(pdfFile); i++) await page.waitForTimeout(500);
@@ -403,7 +404,7 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
     require('child_process').execFileSync('pdftoppm', ['-r', '40', '-f', '1', '-l', '3', '-png', pdfFile, path.join(OUT, 'pdf')]);
   });
   await check('Importar JSON (sobrescribe) tras borrar una consola → la recupera', async () => {
-    await page.getByRole('button', { name: 'Plataformas' }).click();
+    await page.getByRole('button', { name: 'Consolas', exact: true }).click();
     await page.getByText('PlayStation 2 Slim').first().click();
     await page.getByRole('button', { name: /Eliminar consola/ }).click();
     await page.locator('.modal-box').getByRole('button', { name: 'Eliminar' }).click();
@@ -413,7 +414,7 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
     await page.getByRole('button', { name: /importar y sobrescribir/ }).click();
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(1500);
-    await page.getByRole('button', { name: 'Plataformas' }).click();
+    await page.getByRole('button', { name: 'Consolas', exact: true }).click();
     await page.getByText('PlayStation 2 Slim').first().waitFor();
   });
   await check('Borrar una plataforma borra también sus juegos (sin huérfanos)', async () => {
@@ -436,7 +437,7 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
       env: { ...process.env, GV_PROD: '1', GV_DATA_DIR: DATA, GV_FAKE_HTTP: path.join(APP, 'tests/fakeHttp.js') },
     });
     const p2 = await app2.firstWindow();
-    await p2.getByRole('heading', { name: 'Dashboard' }).waitFor({ timeout: 20000 });
+    await p2.getByRole('heading', { name: 'Inicio' }).waitFor({ timeout: 20000 });
     await p2.getByRole('button', { name: 'Juegos', exact: true }).click();
     await p2.locator('td.td-name', { hasText: 'Mario Kart 8 Deluxe: Booster Course' }).waitFor();
     await app2.close();
@@ -449,22 +450,27 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
   page = await app3.firstWindow(); CUR.page = page;
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   await page.setViewportSize({ width: 1440, height: 900 }).catch(() => {});
-  await page.getByRole('heading', { name: 'Dashboard' }).waitFor({ timeout: 20000 });
+  await page.getByRole('heading', { name: 'Inicio' }).waitFor({ timeout: 20000 });
   await check('Tema claro/oscuro: el botón de la barra de título cambia el tema y se recuerda', async () => {
     const theme = () => page.evaluate(() => document.documentElement.dataset.theme);
     await page.evaluate(() => localStorage.removeItem('gv-theme'));   // partir de cero (el perfil de Electron se comparte entre ejecuciones)
-    await page.reload(); await page.getByRole('heading', { name: 'Dashboard' }).waitFor({ timeout: 15000 });
-    assert(await theme() === 'dark', 'por defecto oscuro');
+    await page.reload(); await page.getByRole('heading', { name: 'Inicio' }).waitFor({ timeout: 15000 });
+    const sis = await page.evaluate(() => matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    assert(await theme() === sis, 'por defecto debe seguir al sistema (' + sis + ')');
+    await page.locator('.sidebar-footer').getByText('como el sistema').waitFor();
+    if (sis === 'light') await page.locator('.titlebar .theme-icon').click();   // partir de oscuro
     await page.locator('.titlebar .theme-icon').click();
     assert(await theme() === 'light', 'no cambió a claro');
     await page.waitForTimeout(600);   // fin del fundido
     const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
     assert(bg === 'rgb(233, 235, 243)', 'fondo claro: ' + bg);
-    await page.reload(); await page.getByRole('heading', { name: 'Dashboard' }).waitFor({ timeout: 15000 });
+    await page.reload(); await page.getByRole('heading', { name: 'Inicio' }).waitFor({ timeout: 15000 });
     assert(await theme() === 'light', 'no se recordó');
     await shot('tema-claro');
     await page.locator('.sidebar-footer .theme-switch').click();
     assert(await theme() === 'dark', 'el interruptor lateral no vuelve a oscuro');
+    await page.locator('.sidebar-footer .theme-auto').click();
+    assert(await theme() === sis && await page.evaluate(() => localStorage.getItem('gv-theme')) === null, '«Auto» vuelve al del sistema');
   });
   await check('Borrar colección: aviso, casillas premarcadas, confirmar con BORRAR; borra sólo lo marcado', async () => {
     await page.evaluate(() => window.api.deseos.create({ nombre: 'Deseo E2E', plataforma: 'Switch' }));
@@ -486,7 +492,7 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
     await modal.locator('.wipe-confirm input').fill('borrar');
     await shot('borrar-parcial');
     await modal.getByRole('button', { name: new RegExp('Borrar ' + n0.juegos + ' elementos') }).click();
-    await page.getByRole('heading', { name: 'Dashboard' }).waitFor({ timeout: 15000 });
+    await page.getByRole('heading', { name: 'Inicio' }).waitFor({ timeout: 15000 });
     const n1 = await page.evaluate(() => window.api.io.counts());
     assert(n1.juegos === 0 && n1.plataformas === n0.plataformas && n1.deseos === n0.deseos, JSON.stringify(n1));
     // Todo

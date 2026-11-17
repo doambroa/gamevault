@@ -1,17 +1,24 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Monitor, Gamepad2, Heart, BarChart2, Upload, Download, Settings, FolderOpen, MoreHorizontal } from 'lucide-react';
+import { LayoutDashboard, Monitor, Gamepad2, Heart, BarChart2, Upload, Download, Settings, FolderOpen, MoreHorizontal, Users, ArrowLeftRight } from 'lucide-react';
+import { AccountButton, AccountModal } from '../../community/ui';
+import { useAccount } from '../../community/account';
 import SettingsModal from '../ui/index';
 import { Modal, Btn } from '../ui/index';
 import WipeModal from '../ui/WipeModal';
 import ThemeToggle from '../ui/ThemeToggle';
 
+// movil:false → en el móvil va dentro de «Más» para que la barra inferior no se llene
 const NAV = [
-  { to:'/dashboard',   icon:LayoutDashboard, label:'Dashboard'      },
-  { to:'/plataformas', icon:Monitor,          label:'Plataformas'   },
-  { to:'/juegos',      icon:Gamepad2,         label:'Juegos'        },
-  { to:'/deseos',      icon:Heart,            label:'Lista de Deseos'},
-  { to:'/stats',       icon:BarChart2,        label:'Estadísticas'  },
+  { to:'/dashboard',   icon:LayoutDashboard, label:'Inicio'          , movil:true  },
+  { to:'/plataformas', icon:Monitor,          label:'Consolas'       , movil:true  },
+  { to:'/juegos',      icon:Gamepad2,         label:'Juegos'         , movil:true  },
+  { to:'/deseos',      icon:Heart,            label:'Lista de deseos', movil:false },
+  { to:'/stats',       icon:BarChart2,        label:'Estadísticas'   , movil:false },
+];
+const NAV_COMUNIDAD = [
+  { to:'/prestamos',   icon:ArrowLeftRight,   label:'Préstamos'      , movil:true  },
+  { to:'/comunidad',   icon:Users,            label:'Comunidad'      , movil:false },
 ];
 
 export default function Sidebar() {
@@ -23,6 +30,16 @@ export default function Sidebar() {
   const [importState, setImportState]   = useState(null); // {filePath} | null
   const [importing,   setImporting]     = useState(false);
   const [importErr,   setImportErr]     = useState('');
+  const [showAccount, setShowAccount]   = useState(false);
+  const acc = useAccount();
+  const conComunidad = acc.ready && acc.available;
+  const navItem = ({ to, icon: Icon, label, movil }, extra = '') => (
+    <button key={to + extra}
+      className={(extra ? 'sidebar-action sidebar-mob' : 'nav-item' + (movil ? '' : ' nav-desk')) + (loc.pathname.startsWith(to) ? ' active' : '')}
+      onClick={() => { nav(to); setMoreOpen(false); }}>
+      <Icon size={extra ? 14 : 18}/><span>{label}</span>
+    </button>
+  );
 
   const doExport = async () => {
     const r = await window.api?.io.export();
@@ -52,20 +69,19 @@ export default function Sidebar() {
   return (
     <>
       <aside className="sidebar">
+        <div className="sidebar-account"><AccountButton onOpen={() => setShowAccount(true)}/></div>
         <nav className="nav">
-          {NAV.map(({ to, icon: Icon, label }) => (
-            <button key={to}
-              className={'nav-item' + (loc.pathname.startsWith(to) ? ' active' : '')}
-              onClick={() => { nav(to); setMoreOpen(false); }}>
-              <Icon size={18}/><span>{label}</span>
-            </button>
-          ))}
+          {NAV.map(i => navItem(i))}
+          {conComunidad && <div className="nav-sep">Comunidad</div>}
+          {conComunidad && NAV_COMUNIDAD.map(i => navItem(i))}
           <button className={'nav-item nav-more' + (moreOpen ? ' active' : '')} onClick={() => setMoreOpen(o => !o)}>
             <MoreHorizontal size={18}/><span>Más</span>
           </button>
         </nav>
         {moreOpen && <div className="sidebar-scrim" onClick={() => setMoreOpen(false)}/>}
         <div className={'sidebar-footer' + (moreOpen ? ' open' : '')} onClick={() => setMoreOpen(false)}>
+          {conComunidad && <button className="sidebar-action sidebar-mob" onClick={() => setShowAccount(true)}><Users size={14}/> {acc.me ? 'Mi cuenta' : 'Iniciar sesión'}</button>}
+          {[...NAV, ...(conComunidad ? NAV_COMUNIDAD : [])].filter(i => !i.movil).map(i => navItem(i, 'mob'))}
           <button className="sidebar-action" onClick={doExport}>
             <Upload size={14}/> Exportar JSON
           </button>
@@ -114,6 +130,7 @@ export default function Sidebar() {
 
       <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} onWipe={() => setShowWipe(true)}/>
       <WipeModal open={showWipe} onClose={() => setShowWipe(false)}/>
+      <AccountModal open={showAccount} onClose={() => setShowAccount(false)}/>
     </>
   );
 }

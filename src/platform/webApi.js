@@ -138,6 +138,7 @@ function imageToDataUri(file, max = 900) {
 // ── Arranque ──────────────────────────────────────────────────────────────────
 let corePromise = null;
 const listeners = new Set();
+const dirtyListeners = new Set();
 let pendingImport = null;
 let flushNow = () => Promise.resolve();   // se asigna al arrancar el núcleo
 
@@ -163,6 +164,7 @@ function getCore() {
       persist: data => { latest = data; clearTimeout(timer); timer = setTimeout(flush, 250); },
       http,
       onChange: e => listeners.forEach(fn => { try { fn(e); } catch {} }),
+      onDirty: () => dirtyListeners.forEach(fn => { try { fn(); } catch {} }),
       log: (...a) => console.info('[GameVault]', ...a),
     });
     // BD nueva → catálogo vacío (el asistente inicial guía al usuario)
@@ -231,6 +233,10 @@ export function createWebApi() {
         return out;
       },
     },
+    sync: {
+      export: () => call('sync:export'),
+      import: async obj => { const r = await call('sync:import', obj); await flushNow(); return r; },
+    },
     wiki: {
       // Wikipedia y upload.wikimedia.org permiten CORS: petición directa
       fetch: async url => {
@@ -248,6 +254,7 @@ export function createWebApi() {
     window: { minimize() {}, maximize() {}, close() {} },
     app: { isFirstRun: () => call('app:isFirstRun'), completeOnboarding: () => call('app:completeOnboarding') },
     onChanged: fn => { listeners.add(fn); return () => listeners.delete(fn); },
+    onDirty: fn => { dirtyListeners.add(fn); return () => dirtyListeners.delete(fn); },
     _core: getCore,
   };
 }

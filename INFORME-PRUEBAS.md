@@ -1,4 +1,24 @@
-# GameVault 1.8 — Informe de pruebas y errores corregidos
+# GameVault — Informe de pruebas y errores corregidos
+
+## Versión 2.0 (17-11-2026)
+
+| Batería | Resultado |
+|---|---|
+| Pruebas unitarias | ✅ 45/45 |
+| E2E de escritorio (Electron) | ✅ 35/35: incluye carátulas grandes, estadísticas nuevas (pulsar → carátulas → ficha → editar) y tema que sigue al sistema con «Auto» |
+| E2E de comunidad (web + `api.php` real en PHP, con Créditos Finales simulada al lado) | ✅ 18/18: entrar, bajar la colección, Créditos Finales en Inicio/Juegos/ficha, comunidad, colección ajena en solo lectura, zona de préstamos, préstamos en curso, prestar a un colega, reclamar perfil (aviso y enlace; enlace falso rechazado), móvil con tema claro del sistema, sincronización y conflicto entre dispositivos |
+| E2E Android (WebView simulada) | ✅ 16/16 |
+| E2E iPhone (dist/web servida por PHP) | ✅ 9/9: ahora empieza en «entrar o seguir sin cuenta» |
+| E2E de accesorios | ✅ 8/8 |
+
+Errores encontrados y corregidos al probar:
+1. Al entrar en la web con una colección guardada, se bajaba pero volvía a salir el asistente inicial: la marca de «asistente hecho» no llegaba a guardarse antes de recargar.
+2. Una cuenta nueva con un perfil por reclamar no veía el aviso (el asistente lo tapaba), y el enlace de reclamar abría el asistente en vez de la página del enlace.
+3. Quien entraba sin colección no podía ver la comunidad sin pasar por el asistente: ahora hay «Ahora no: ver lo que tienen mis colegas».
+4. En Estadísticas, al editar un juego desde su ficha, las carátulas de abajo no se actualizaban.
+5. El service worker de la web podía guardar en caché las respuestas de `api.php` (datos viejos): ahora `api.php` siempre va a la red.
+6. Al abrir dos enlaces de reclamar seguidos se quedaba el error del primero.
+
 
 
 ## Versión 1.9 (14-11-2026)

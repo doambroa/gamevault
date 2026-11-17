@@ -23,6 +23,7 @@ const shot = n => page.screenshot({ path: path.join(OUT, `${String(step).padStar
     env: { ...process.env, GV_PROD: '1', GV_DATA_DIR: DATA, GV_FAKE_HTTP: path.join(APP, 'tests/fakeHttp.js') },
   });
   page = await app.firstWindow();
+  await page.evaluate(() => { try { localStorage.setItem('gv_juegos_modo', 'lista'); } catch {} }).catch(() => {});
   page.on('pageerror', e => errors.push(e.message));
   await page.setViewportSize({ width: 1366, height: 860 }).catch(() => {});
 
@@ -30,10 +31,10 @@ const shot = n => page.screenshot({ path: path.join(OUT, `${String(step).padStar
     await page.getByText('Empezar desde cero').click();
     await page.locator('.ob-consola').filter({ has: page.locator('.ob-consola-nombre', { hasText: /^Wii$/ }) }).click();
     await page.getByRole('button', { name: /Añadir 1 consola/ }).click();
-    await page.getByRole('heading', { name: 'Dashboard' }).waitFor({ timeout: 15000 });
+    await page.getByRole('heading', { name: 'Inicio' }).waitFor({ timeout: 15000 });
   });
   await check('El detalle de la consola tiene la sección «Accesorios», vacía', async () => {
-    await page.locator('.nav-item', { hasText: 'Plataformas' }).click();
+    await page.locator('.nav-item', { hasText: 'Consolas' }).click();
     await page.locator('.plat-card', { hasText: 'Wii' }).first().click();
     await page.locator('.acc-section').getByText('Accesorios (0)').waitFor({ timeout: 8000 });
     await page.locator('.acc-vacio').waitFor();
@@ -68,7 +69,7 @@ const shot = n => page.screenshot({ path: path.join(OUT, `${String(step).padStar
     await page.locator('.acc-card', { hasText: 'Disco de limpieza' }).getByText('Con su caja original').waitFor();
   });
   await check('La tarjeta de la consola muestra «2 accesorios»', async () => {
-    await page.locator('.nav-item', { hasText: 'Plataformas' }).click();
+    await page.locator('.nav-item', { hasText: 'Consolas' }).click();
     await page.locator('.plat-card', { hasText: 'Wii' }).getByText('2 accesorios').waitFor({ timeout: 8000 });
   });
   await check('Tema claro: la sección se ve bien', async () => {

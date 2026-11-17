@@ -23,11 +23,17 @@ async function check(name, fn) { step++; try { await fn(); results.push(`✔ ${s
   });
   await ctx.route(/rawg\.io|wikimedia/, r => r.abort());
   const page = await ctx.newPage(); CUR.page = page;
+  await page.addInitScript(() => { try { localStorage.setItem('gv_juegos_modo', 'lista'); } catch {} });   // estas pruebas usan la tabla
   page.on('pageerror', e => errors.push(e.message));
   page.on('dialog', d => d.accept());
   const shot = n => page.screenshot({ path: path.join(OUT, `${String(step).padStart(2, '0')}-${n}.png`) });
   await page.goto('http://127.0.0.1:5088/');
 
+  await check('Con api.php en el servidor sale «entrar o crear cuenta»; se puede seguir sin cuenta', async () => {
+    await page.locator('.gv-gate').waitFor({ timeout: 20000 });
+    await shot('entrar');
+    await page.locator('.gv-gate-guest').click();
+  });
   await check('Abre en iPhone: bienvenida, catálogo vacío, icono y manifiesto de la app', async () => {
     await page.getByText('Empezar desde cero').waitFor({ timeout: 20000 });
     const m = await page.evaluate(() => fetch(document.querySelector('link[rel=manifest]').href).then(r => r.json()));
@@ -58,7 +64,7 @@ async function check(name, fn) { step++; try { await fn(); results.push(`✔ ${s
     await page.locator('.ob-consola', { hasText: 'PlayStation 2' }).click();
     await page.locator('.ob-consola', { hasText: 'Switch' }).first().click();
     await page.getByRole('button', { name: /Añadir 2 consolas/ }).click();
-    await page.getByRole('heading', { name: 'Dashboard' }).waitFor({ timeout: 15000 });
+    await page.getByRole('heading', { name: 'Inicio' }).waitFor({ timeout: 15000 });
     const ps = await page.evaluate(() => window.api.plataformas.getAll());
     const imgs = ps.map(p => JSON.parse(p.imagenes || '[]')[0]).sort();
     assert(imgs.join() === './consolas/playstation-2.png,./consolas/switch.png', 'imágenes por defecto: ' + imgs.join());

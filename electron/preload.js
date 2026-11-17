@@ -4,6 +4,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 ipcRenderer.on('gv:log', (_, msg) => console.info('%c[GameVault]', 'color:#22d3ee', msg));
 
 const changeListeners = new Set();
+const dirtyListeners = new Set();
+ipcRenderer.on('gv:dirty', () => { for (const fn of dirtyListeners) { try { fn(); } catch {} } });
 ipcRenderer.on('gv:changed', (_, e) => { for (const fn of changeListeners) { try { fn(e); } catch {} } });
 
 contextBridge.exposeInMainWorld('api', {
@@ -59,7 +61,12 @@ contextBridge.exposeInMainWorld('api', {
     counts:        () => ipcRenderer.invoke('data:counts'),
     wipe:          (o) => ipcRenderer.invoke('data:wipe', o),
   },
-  images: { select: () => ipcRenderer.invoke('img:select') },
+  images: { select: () => ipcRenderer.invoke('img:select'), read: (p) => ipcRenderer.invoke('img:read', p) },
+  // Sincronización con la cuenta (la hace la interfaz; aquí solo se lee/escribe la colección entera)
+  sync: {
+    export: ()    => ipcRenderer.invoke('sync:export'),
+    import: (obj) => ipcRenderer.invoke('sync:import', obj),
+  },
   wiki: { fetch: (url) => ipcRenderer.invoke('wiki:fetch', url) },
   window: {
     minimize: () => ipcRenderer.send('win:min'),
@@ -74,4 +81,6 @@ contextBridge.exposeInMainWorld('api', {
   },
   // Avisos de cambios hechos en segundo plano (p.ej. llegan datos de HLTB/ventas)
   onChanged: (fn) => { changeListeners.add(fn); return () => changeListeners.delete(fn); },
+  // La colección ha cambiado (por la persona o en segundo plano): hay algo que subir a la cuenta
+  onDirty: (fn) => { dirtyListeners.add(fn); return () => dirtyListeners.delete(fn); },
 });

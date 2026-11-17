@@ -3,6 +3,9 @@ import { imgSrc, parseImgs } from '../../utils/imgSrc';
 import { X, Edit2, Monitor, Calendar, Euro, Users, Globe, Tag, Info, ChevronLeft, ChevronRight, BookOpen, RefreshCw, Copy } from 'lucide-react';
 import { Badge } from '../../components/ui/index';
 import VentasSection from './VentasSection';
+import { PrestarModal } from '../../community/ui';
+import { useCreditos, findCredito, estrellas, ESTADO_CF } from '../../community/creditos';
+import { Trophy, ExternalLink, Maximize2 } from 'lucide-react';
 
 const api = window.api;
 const EC = { Nuevo:'green', Usado:'gold', Digital:'cyan', Dañado:'accent' };
@@ -16,8 +19,12 @@ export default function JuegoPanel({ juego, plataforma, open, onClose, onEdit, o
   const [hltbData, setHltbData] = useState(null); // { hltbMain, hltbExtra, hltbComplete } | null
 
   const autoHltb = useRef(null);
+  const [zoom, setZoom] = useState(false);          // foto a pantalla completa
+  const [prestar, setPrestar] = useState(false);
+  const cf = useCreditos();
+  const credito = findCredito(cf.idx, juego);
 
-  useEffect(() => { setImgIdx(0); setHltbData(null); setHltbError(''); }, [juego?.id]);
+  useEffect(() => { setImgIdx(0); setHltbData(null); setHltbError(''); setZoom(false); }, [juego?.id]);
 
   const hltbMain     = hltbData?.hltbMain     ?? juego?.hltbMain;
   const hltbExtra    = hltbData?.hltbExtra    ?? juego?.hltbExtra;
@@ -99,7 +106,8 @@ export default function JuegoPanel({ juego, plataforma, open, onClose, onEdit, o
           {/* Image gallery */}
           {imgs.length > 0 && (
             <div className="jp-gallery">
-              <img src={imgSrc(imgs[imgIdx])} alt={juego.nombre} className="jp-main-img" />
+              <img src={imgSrc(imgs[imgIdx])} alt={juego.nombre} className="jp-main-img" onClick={() => setZoom(true)} title="Ver en grande"/>
+              <button className="jp-zoom-btn" onClick={() => setZoom(true)} title="Ver en grande"><Maximize2 size={14}/></button>
               {imgs.length > 1 && (
                 <>
                   <button className="jp-gallery-btn jp-gallery-prev"
@@ -256,24 +264,39 @@ export default function JuegoPanel({ juego, plataforma, open, onClose, onEdit, o
             </div>
           )}
 
-          {/* Préstamo */}
-          {juego.prestadoA && (
-            <div style={{ margin:'0 0 12px', padding:'10px 14px',
-              background:'rgba(244,162,97,0.08)', border:'1px solid rgba(244,162,97,0.25)',
-              borderRadius:'var(--r-lg)', display:'flex', alignItems:'flex-start', gap:10 }}>
-              <BookOpen size={15} style={{ color:'var(--gold)', flexShrink:0, marginTop:1 }}/>
-              <div>
-                <p style={{ fontSize:12, fontWeight:600, color:'var(--gold)', marginBottom:2 }}>
-                  Prestado a {juego.prestadoA}
-                </p>
-                {juego.fechaPrestamo && (
-                  <p style={{ fontSize:11, color:'var(--text-3)' }}>
-                    desde {juego.fechaPrestamo}
-                  </p>
-                )}
+          {/* Créditos Finales: ¿me lo he pasado? */}
+          {credito && (
+            <div className={'jp-cf jp-cf-' + credito.e}>
+              <div className="jp-cf-head">
+                <Trophy size={15}/>
+                <b>{credito.e === 'terminado' ? `Terminado${credito.y ? ' en ' + credito.y : ''}` : ESTADO_CF[credito.e]?.txt}</b>
+                {credito.x && <span className="badge badge-default">Rejugado</span>}
+                {cf.url && <a href={cf.url} target="_blank" rel="noreferrer" title="Abrir Créditos Finales"><ExternalLink size={13}/></a>}
               </div>
+              {credito.e === 'terminado' && (
+                <div className="jp-cf-nums">
+                  {credito.r != null && <span className="jp-cf-stars" title={`${credito.r} de 5`}>{estrellas(credito.r)}</span>}
+                  {credito.h ? <span>{String(credito.h).replace('.', ',')} h</span> : null}
+                  {credito.d && <span>{credito.d.split('-').reverse().join('/')}</span>}
+                </div>
+              )}
+              {credito.s && <p className="jp-cf-song">♪ {credito.s}</p>}
+              {credito.c && <p className="jp-cf-com">{credito.c}</p>}
             </div>
           )}
+
+          {/* Préstamo */}
+          <div className={'jp-loan' + (juego.prestadoA ? ' on' : '')}>
+            <BookOpen size={15}/>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {juego.prestadoA
+                ? <><p className="jp-loan-t">Lo tiene {juego.prestadoA}</p>{juego.fechaPrestamo && <p className="jp-loan-d">desde el {juego.fechaPrestamo.split('-').reverse().join('/')}</p>}</>
+                : <p className="jp-loan-d">Lo tienes tú</p>}
+            </div>
+            {juego.prestadoA
+              ? <button className="jp-action-btn" onClick={async () => { await api.juegos.devolver(juego.id); onRefresh?.(); }}>Me lo han devuelto</button>
+              : <button className="jp-action-btn" onClick={() => setPrestar(true)}>Prestar…</button>}
+          </div>
 
           {/* Comments */}
           {juego.comentarios && (
@@ -295,6 +318,13 @@ export default function JuegoPanel({ juego, plataforma, open, onClose, onEdit, o
           )}
         </div>
       </div>
+      {zoom && imgs[imgIdx] && (
+        <div className="jp-lightbox" onClick={() => setZoom(false)}>
+          <img src={imgSrc(imgs[imgIdx])} alt={juego.nombre}/>
+          <button className="jp-close" onClick={() => setZoom(false)}><X size={20}/></button>
+        </div>
+      )}
+      <PrestarModal open={prestar} juego={juego} onClose={() => setPrestar(false)} onSaved={onRefresh}/>
     </>
   );
 }

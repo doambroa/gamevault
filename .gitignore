@@ -14,3 +14,4 @@ src/core/keys.js
 android/*.jks
 android/*.keystore
 tests/e2e/shots/
+tests/e2e/shots-*/

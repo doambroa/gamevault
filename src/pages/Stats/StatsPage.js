@@ -1,324 +1,259 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { imgSrc } from '../../utils/imgSrc';
-import { BarChart2, Circle, Grid, ArrowLeft, SortAsc, Clock, TrendingUp, Star, MousePointerClick } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Gamepad2, Monitor, Clock, Euro, BookOpen, Trophy, CalendarDays, Tags, Hourglass, X } from 'lucide-react';
 import './Stats.css';
 import JuegoPanel from '../Juegos/JuegoPanel';
 import JuegoForm from '../Juegos/JuegoForm';
 import '../Juegos/JuegoPanel.css';
-import { fmtHours } from '../../utils/hltb';
-import { fmtUnits } from '../Juegos/VentasSection';
+import GameCard from '../../components/GameCard';
+import { firstImg } from '../../utils/imgSrc';
+import { useCreditos, findCredito } from '../../community/creditos';
+
+/* Estadísticas, versión 2.0
+ * Antes: tres dibujos del mismo dato (burbujas, barras, tarjetas) y una «línea temporal» que era una
+ * lista larguísima sin escala de tiempo y con detalles solo al pasar el ratón (no va en el móvil).
+ * Ahora: cada bloque responde a una pregunta, todo se puede pulsar y lo pulsado se abre debajo
+ * con las carátulas; de ahí, a la ficha del juego. */
 
 const api = window.api;
-const VIEWS = [
-  { id:'bubbles', label:'Burbujas', icon:Circle    },
-  { id:'bars',    label:'Barras',   icon:BarChart2 },
-  { id:'grid',    label:'Tarjetas', icon:Grid      },
-];
-const TIMELINE_AXES = [
-  { id:'fechaLanzamiento', label:'Fecha lanzamiento' },
-  { id:'fechaAdquisicion', label:'Fecha adquisición' },
-  { id:'precio',           label:'Precio' },
-  { id:'nombre',           label:'Nombre (A-Z)' },
+const eur = n => (Number(n) || 0).toLocaleString('es-ES', { maximumFractionDigits: 0 }) + ' €';
+const TRAMOS = [
+  { k: 'corto', l: 'Menos de 5 h', min: 0, max: 5 },
+  { k: 'tarde', l: '5 – 15 h', min: 5, max: 15 },
+  { k: 'finde', l: '15 – 30 h', min: 15, max: 30 },
+  { k: 'largo', l: '30 – 60 h', min: 30, max: 60 },
+  { k: 'eterno', l: 'Más de 60 h', min: 60, max: Infinity },
 ];
 
 export default function StatsPage() {
-  const [stats,  setStats]  = useState(null);
-  const [juegos, setJuegos] = useState([]);
-  const [plats,  setPlats]  = useState([]);
-  const [view,   setView]   = useState('bubbles');
-  const [timelinePlatId, setTimelinePlatId] = useState(null);
-  const setTimelinePlat = p => setTimelinePlatId(p ? p.id : null);
-  // Detalle de juego (panel derecho) y edición desde la línea temporal
+  const nav = useNavigate();
+  const [juegos, setJuegos] = useState(null);
+  const [plats, setPlats] = useState([]);
+  const [eje, setEje] = useState('fechaLanzamiento');      // fechaLanzamiento | fechaAdquisicion | terminado
+  const [platFiltro, setPlatFiltro] = useState('');
+  const [sel, setSel] = useState(null);                     // { titulo, juegos } — lo que se ha pulsado
   const [panelJuego, setPanelJuego] = useState(null);
-  const [panelOpen, setPanelOpen]   = useState(false);
-  const [editJuego, setEditJuego]   = useState(null);
-  const [timelineAxis, setTimelineAxis] = useState('fechaLanzamiento');
+  const [editJuego, setEditJuego] = useState(null);
+  const cf = useCreditos();
+  useEffect(() => { if (sel) setTimeout(() => document.getElementById('st-sel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60); }, [sel]);
 
   const load = useCallback(async () => {
-    const [s, j, p] = await Promise.all([
-      api.stats.get(), api.juegos.getAll({}), api.plataformas.getAll(),
-    ]);
-    setStats(s); setJuegos(j); setPlats(p);
+    const [j, p] = await Promise.all([api.juegos.getAll({}), api.plataformas.getAll()]);
+    setJuegos(j); setPlats(p);
     setPanelJuego(cur => (cur ? j.find(x => x.id === cur.id) || null : cur));
   }, []);
   useEffect(() => { if (api) load(); }, [load]);
-  // Cambios en segundo plano (HLTB, ventas) → la gráfica se actualiza sola
   useEffect(() => {
     if (!api?.onChanged) return;
     let t; const off = api.onChanged(() => { clearTimeout(t); t = setTimeout(load, 400); });
     return () => { clearTimeout(t); off(); };
   }, [load]);
 
-  if (!stats) return <div className="page"><p style={{color:'var(--text-2)'}}>Cargando…</p></div>;
+  const platPorId = useMemo(() => Object.fromEntries(plats.map(p => [p.id, p])), [plats]);
+  const lista = useMemo(() => (juegos || []).map(j => ({
+    ...j, plataformaNombre: j.plataformaNombre || platPorId[j.plataformaId]?.nombre || '',
+    _cf: findCredito(cf.idx, j),
+  })), [juegos, platPorId, cf]);
+  const hecho = j => j._cf?.e === 'terminado';
 
-  const platData = plats.map(p => {
-    const pJuegos = juegos.filter(j => j.plataformaId === p.id);
-    const imgs = typeof p.imagenes==='string'?JSON.parse(p.imagenes||'[]'):(p.imagenes||[]);
-    return { ...p, numJuegos:pJuegos.length, cover:imgs[0]||null, juegos:pJuegos };
-  }).filter(p => p.numJuegos > 0).sort((a,b) => b.numJuegos - a.numJuegos);
+  // ── Números de cabecera ──
+  const kpi = useMemo(() => {
+    const horas = lista.reduce((n, j) => n + (j.hltbMain > 0 ? j.hltbMain : 0), 0);
+    const pendientes = lista.filter(j => !hecho(j) && j.hltbMain > 0);
+    return {
+      juegos: lista.reduce((n, j) => n + Math.max(1, j.unidades || 1), 0),
+      consolas: plats.length,
+      horas, gasto: lista.reduce((n, j) => n + (Number(j.precio) || 0), 0) + plats.reduce((n, p) => n + (Number(p.precio) || 0), 0),
+      prestados: lista.filter(j => j.prestadoA).length,
+      terminados: lista.filter(hecho).length,
+      horasPend: pendientes.reduce((n, j) => n + j.hltbMain, 0),
+    };
+  }, [lista, plats]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const max = platData[0]?.numJuegos || 1;
-  
+  // ── Por consola ──
+  const porConsola = useMemo(() => plats.map(p => {
+    const js = lista.filter(j => j.plataformaId === p.id);
+    return { p, js, n: js.length, t: js.filter(hecho).length, img: firstImg(p.imagenes) };
+  }).filter(x => x.n > 0).sort((a, b) => b.n - a.n), [plats, lista]); // eslint-disable-line react-hooks/exhaustive-deps
+  const maxC = porConsola[0]?.n || 1;
 
-  const timelinePlat = timelinePlatId != null
-    ? (() => { const p = plats.find(x => x.id === timelinePlatId); return p ? { ...p, juegos: juegos.filter(j => j.plataformaId === p.id) } : null; })()
-    : null;
+  // ── Año a año (con escala de tiempo de verdad: los años vacíos también salen) ──
+  const anios = useMemo(() => {
+    const m = new Map();
+    for (const j of lista) {
+      if (platFiltro && String(j.plataformaId) !== platFiltro) continue;
+      let y = null;
+      if (eje === 'terminado') y = hecho(j) ? Number(j._cf.y) || null : null;
+      else y = Number(String(j[eje] || '').slice(0, 4)) || null;
+      if (!y || y < 1970 || y > 2100) continue;
+      if (!m.has(y)) m.set(y, []);
+      m.get(y).push(j);
+    }
+    if (!m.size) return [];
+    const ys = [...m.keys()];
+    const res = [];
+    for (let y = Math.min(...ys); y <= Math.max(...ys); y++) res.push({ y, js: m.get(y) || [] });
+    return res;
+  }, [lista, eje, platFiltro]); // eslint-disable-line react-hooks/exhaustive-deps
+  const maxA = Math.max(1, ...anios.map(a => a.js.length));
+  const sinFecha = lista.filter(j => (!platFiltro || String(j.plataformaId) === platFiltro) && (eje === 'terminado' ? false : !String(j[eje] || '').match(/^\d{4}/))).length;
 
-  if (timelinePlat) return (
-    <>
-      <Timeline plat={timelinePlat} axis={timelineAxis} activeId={panelOpen ? panelJuego?.id : null}
-        onAxisChange={setTimelineAxis} onBack={() => { setTimelinePlat(null); setPanelOpen(false); }}
-        onOpen={j => { setPanelJuego(j); setPanelOpen(true); }}
-        panelOpen={panelOpen}/>
-      <JuegoPanel juego={panelJuego} plataforma={timelinePlat} open={panelOpen}
-        onClose={() => setPanelOpen(false)}
-        onEdit={() => { setEditJuego(panelJuego); }}
-        onRefresh={load}/>
-      <JuegoForm open={!!editJuego} initial={editJuego} plataformas={plats}
-        onClose={() => setEditJuego(null)}
-        onSave={async data => { await api.juegos.update({ id: editJuego.id, ...data }); setEditJuego(null); await load(); }}/>
-    </>
-  );
+  // ── Duración ──
+  const tramos = useMemo(() => TRAMOS.map(t => ({ ...t, js: lista.filter(j => j.hltbMain > 0 && j.hltbMain >= t.min && j.hltbMain < t.max) })), [lista]);
+  const maxT = Math.max(1, ...tramos.map(t => t.js.length));
+
+  // ── Géneros ──
+  const generos = useMemo(() => {
+    const m = {};
+    for (const j of lista) if (j.genero) (m[j.genero] = m[j.genero] || []).push(j);
+    return Object.entries(m).map(([g, js]) => ({ g, js })).sort((a, b) => b.js.length - a.js.length).slice(0, 12);
+  }, [lista]);
+  const maxG = generos[0]?.js.length || 1;
+
+  if (!juegos) return <div className="page"><p style={{ color: 'var(--text-2)' }}>Cargando…</p></div>;
+
+  // Se guardan los ids (no los juegos): si se edita uno desde la ficha, la lista de abajo se ve ya cambiada
+  const abrir = (titulo, js, k) => setSel(s => (s && s.k === k ? null : { titulo, ids: js.map(j => j.id), k }));
+  const selJuegos = sel ? lista.filter(j => sel.ids.includes(j.id)) : [];
+  const panelOpen = !!panelJuego;
 
   return (
-    <div className="page">
-      <div className="stats-header">
+    <div className={'page' + (panelOpen ? ' con-panel' : '')}>
+      <div className="page-header">
         <div>
           <h1 className="page-title">Estadísticas</h1>
-          <p className="page-sub">{stats.totalJuegos} juegos en {stats.totalPlataformas} plataformas</p>
-        </div>
-        <div className="view-selector">
-          {VIEWS.map(({id,label,icon:Icon}) => (
-            <button key={id} className={`view-btn ${view===id?'active':''}`} onClick={()=>setView(id)}>
-              <Icon size={15}/> {label}
-            </button>
-          ))}
+          <p className="page-sub">Pulsa cualquier barra para ver sus juegos</p>
         </div>
       </div>
 
-      {/* ── BUBBLES ── */}
-      {view==='bubbles' && (
-        <div className="bubbles-container">
-          {platData.map(p => {
-            const size = 80 + (p.numJuegos/max)*160;
-            return (
-              <div key={p.id} className="bubble-wrap" style={{width:size,height:size}}
-                onClick={() => setTimelinePlat(p)}>
-                <div className="bubble" style={{width:size,height:size}}>
-                  {p.cover
-                    ? <img src={imgSrc(p.cover)} alt={p.nombre} className="bubble-img"/>
-                    : <div className="bubble-no-img">{p.nombre.slice(0,2)}</div>}
-                  <div className="bubble-overlay">
-                    <p className="bubble-name">{p.nombre}</p>
-                    <p className="bubble-count">{p.numJuegos} juegos</p>
-                    <p className="bubble-hint">Clic → timeline</p>
-                  </div>
-                </div>
-                <p className="bubble-label">{p.nombre}</p>
-                <p className="bubble-sublabel">{p.numJuegos} juegos</p>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <div className="st-kpis">
+        <Kpi icon={<Gamepad2 size={16}/>} n={kpi.juegos} l="juegos"/>
+        <Kpi icon={<Monitor size={16}/>} n={kpi.consolas} l="consolas"/>
+        <Kpi icon={<Clock size={16}/>} n={Math.round(kpi.horas).toLocaleString('es-ES')} l="horas de historia" title="Suma de lo que se tarda en pasar cada juego (HowLongToBeat)"/>
+        {kpi.gasto > 0 && <Kpi icon={<Euro size={16}/>} n={eur(kpi.gasto)} l="invertido"/>}
+        {kpi.prestados > 0 && <Kpi icon={<BookOpen size={16}/>} n={kpi.prestados} l="prestados" onClick={() => nav('/juegos?prestados=1')}/>}
+        {cf.disponible && <Kpi icon={<Trophy size={16}/>} n={kpi.terminados} l="terminados" onClick={() => nav('/juegos?cf=si')} tono="green"/>}
+      </div>
 
-      {/* ── BARS ── */}
-      {view==='bars' && (
-        <div className="bars-list">
-          {platData.map(p => (
-            <div key={p.id} className="bar-row" onClick={() => setTimelinePlat(p)}>
-              <div className="bar-cover">
-                {p.cover
-                  ? <img src={imgSrc(p.cover)} alt={p.nombre} className="bar-cover-img"/>
-                  : <div className="bar-cover-empty">{p.nombre.slice(0,2)}</div>}
-              </div>
-              <div className="bar-info">
-                <div className="bar-top">
-                  <span className="bar-name">{p.nombre}</span>
-                  <span className="bar-num">{p.numJuegos}</span>
-                </div>
-                <div className="bar-track">
-                  <div className="bar-fill" style={{width:`${(p.numJuegos/max)*100}%`}}/>
-                </div>
-                <span className="bar-marca">{p.marca} · {p.tipo}</span>
-              </div>
+      <div className="st-grid">
+        {/* ── Consolas ── */}
+        <section className="st-card st-wide">
+          <h2 className="st-h"><Monitor size={15}/> Juegos por consola
+            {cf.disponible && <span className="st-leyenda"><i className="st-sw st-sw-done"/> terminados <i className="st-sw"/> por jugar</span>}</h2>
+          <div className="st-bars">
+            {porConsola.map(({ p, js, n, t, img }) => (
+              <button key={p.id} className={'st-bar' + (sel?.k === 'p' + p.id ? ' on' : '')} onClick={() => abrir(p.nombre, js, 'p' + p.id)}
+                title={`${p.nombre}: ${n} juegos${cf.disponible ? ` · ${t} terminados` : ''}`}>
+                <span className="st-bar-img">{img ? <img src={img} alt=""/> : <Monitor size={16}/>}</span>
+                <span className="st-bar-name">{p.nombre}</span>
+                <span className="st-bar-track">
+                  <span className="st-bar-fill" style={{ width: `${(n / maxC) * 100}%` }}>
+                    {cf.disponible && t > 0 && <span className="st-bar-done" style={{ width: `${(t / n) * 100}%` }}/>}
+                  </span>
+                </span>
+                <span className="st-bar-n">{n}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* ── Año a año ── */}
+        <section className="st-card st-wide">
+          <h2 className="st-h"><CalendarDays size={15}/> Año a año</h2>
+          <div className="st-tools">
+            <div className="seg">
+              {[['fechaLanzamiento', 'Cuándo salieron'], ['fechaAdquisicion', 'Cuándo los compré'], ...(cf.disponible ? [['terminado', 'Cuándo me los pasé']] : [])].map(([k, l]) => (
+                <button key={k} className={'seg-btn' + (eje === k ? ' active' : '')} onClick={() => { setEje(k); setSel(null); }}>{l}</button>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
-
-      {/* ── GRID ── */}
-      {view==='grid' && (
-        <div className="stat-grid">
-          {platData.map(p => (
-            <div key={p.id} className="stat-tile" onClick={() => setTimelinePlat(p)}>
-              <div className="stat-tile-num">{p.numJuegos}</div>
-              {p.cover
-                ? <img src={imgSrc(p.cover)} alt={p.nombre} className="stat-tile-img"/>
-                : <div className="stat-tile-no-img">{p.nombre.slice(0,2)}</div>}
-              <div className="stat-tile-info">
-                <p className="stat-tile-name">{p.nombre}</p>
-                <p className="stat-tile-marca">{p.marca}</p>
-              </div>
+            <select className="field-input field-select" style={{ width: 'auto' }} value={platFiltro} onChange={e => { setPlatFiltro(e.target.value); setSel(null); }} aria-label="Consola">
+              <option value="">Todas las consolas</option>
+              {porConsola.map(({ p }) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+            </select>
+          </div>
+          {anios.length === 0 ? <p className="gv-muted">No hay fechas apuntadas para esto todavía.</p> : (
+            <div className="st-years" style={{ '--n': anios.length }}>
+              {anios.map(a => (
+                <button key={a.y} className={'st-year' + (sel?.k === 'y' + a.y ? ' on' : '') + (a.js.length ? '' : ' vacio')} disabled={!a.js.length}
+                  onClick={() => abrir(`${a.y} · ${eje === 'fechaLanzamiento' ? 'salieron' : eje === 'fechaAdquisicion' ? 'los compraste' : 'te los pasaste'}`, a.js, 'y' + a.y)}
+                  title={`${a.y}: ${a.js.length} juego${a.js.length !== 1 ? 's' : ''}`}>
+                  <span className="st-year-n">{a.js.length || ''}</span>
+                  <span className="st-year-col" style={{ height: `${(a.js.length / maxA) * 100}%` }}/>
+                  <span className="st-year-l">{a.y % 5 === 0 || anios.length <= 16 ? a.y : '·'}</span>
+                </button>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          )}
+          {sinFecha > 0 && <p className="gv-muted st-nota">{sinFecha} juego{sinFecha !== 1 ? 's' : ''} sin esta fecha no salen aquí.</p>}
+        </section>
 
-      {/* Genre bars */}
-      {stats.porGenero?.length > 0 && (
-        <div style={{marginTop:40}}>
-          <p className="section-title">Géneros más jugados</p>
-          <div style={{background:'var(--bg-2)',border:'1px solid var(--border)',borderRadius:'var(--r-lg)',padding:'16px 20px'}}>
-            {stats.porGenero.map((g,i) => (
-              <div key={g.genero} style={{display:'flex',alignItems:'center',gap:12,marginBottom:i<stats.porGenero.length-1?10:0}}>
-                <span style={{width:110,fontSize:12,color:'var(--text-1)'}}>{g.genero}</span>
-                <div style={{flex:1,height:5,background:'var(--bg-4)',borderRadius:3,overflow:'hidden'}}>
-                  <div style={{height:'100%',width:`${(g.n/stats.porGenero[0].n)*100}%`,
-                    background:'linear-gradient(90deg,var(--accent),var(--gold))',borderRadius:3}}/>
-                </div>
-                <span style={{width:24,fontSize:11,color:'var(--text-3)',fontFamily:'var(--font-m)',textAlign:'right'}}>{g.n}</span>
-              </div>
+        {/* ── Duración ── */}
+        <section className="st-card">
+          <h2 className="st-h"><Hourglass size={15}/> ¿Cuánto duran?</h2>
+          <div className="st-bars st-bars-simple">
+            {tramos.map(t => (
+              <button key={t.k} className={'st-bar' + (sel?.k === t.k ? ' on' : '')} disabled={!t.js.length} onClick={() => abrir(`Duran ${t.l.toLowerCase()}`, t.js, t.k)}>
+                <span className="st-bar-name">{t.l}</span>
+                <span className="st-bar-track"><span className="st-bar-fill" style={{ width: `${(t.js.length / maxT) * 100}%` }}/></span>
+                <span className="st-bar-n">{t.js.length}</span>
+              </button>
+            ))}
+          </div>
+          {cf.disponible && kpi.horasPend > 0 && (
+            <p className="st-pila"><b>{Math.round(kpi.horasPend).toLocaleString('es-ES')} h</b> de historia te esperan en los juegos que aún no has terminado
+              {' '}<button className="gv-link" onClick={() => abrir('Cortos y sin terminar: para empezar ya', lista.filter(j => !hecho(j) && j.hltbMain > 0 && j.hltbMain < 10).sort((a, b) => a.hltbMain - b.hltbMain), 'cortos')}>ver los más cortos</button></p>
+          )}
+        </section>
+
+        {/* ── Géneros ── */}
+        <section className="st-card">
+          <h2 className="st-h"><Tags size={15}/> Géneros</h2>
+          {generos.length === 0 ? <p className="gv-muted">Aún no hay géneros apuntados.</p> : (
+            <div className="st-bars st-bars-simple">
+              {generos.map(({ g, js }) => (
+                <button key={g} className={'st-bar' + (sel?.k === 'g' + g ? ' on' : '')} onClick={() => abrir(g, js, 'g' + g)}>
+                  <span className="st-bar-name">{g}</span>
+                  <span className="st-bar-track"><span className="st-bar-fill" style={{ width: `${(js.length / maxG) * 100}%` }}/></span>
+                  <span className="st-bar-n">{js.length}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+
+      {/* Lo pulsado, con sus carátulas */}
+      {sel && (
+        <div className="st-sel" id="st-sel">
+          <div className="st-sel-h">
+            <h2>{sel.titulo} <span>{selJuegos.length}</span></h2>
+            <button className="icon-btn" onClick={() => setSel(null)} title="Cerrar"><X size={16}/></button>
+          </div>
+          <div className="gcard-grid gcard-grid-sm">
+            {selJuegos.slice().sort((a, b) => String(a.fechaLanzamiento || '9').localeCompare(String(b.fechaLanzamiento || '9'))).map(j => (
+              <GameCard key={j.id} juego={j} showPlat credito={j._cf} active={panelJuego?.id === j.id} onClick={() => setPanelJuego(j)}/>
             ))}
           </div>
         </div>
       )}
+
+      <JuegoPanel juego={panelJuego} plataforma={panelJuego ? platPorId[panelJuego.plataformaId] : null} open={panelOpen}
+        onClose={() => setPanelJuego(null)} onEdit={() => setEditJuego(panelJuego)} onRefresh={load}/>
+      <JuegoForm open={!!editJuego} initial={editJuego} plataformas={plats}
+        onClose={() => setEditJuego(null)}
+        onSave={async data => { await api.juegos.update({ id: editJuego.id, ...data }); setEditJuego(null); await load(); }}/>
     </div>
   );
 }
 
-// ─── Game hover tooltip ───────────────────────────────────────────────────────
-function GameTooltip({ juego, visible, x, y }) {
-  if (!juego || !visible) return null;
-  const imgs = typeof juego.imagenes==='string'?JSON.parse(juego.imagenes||'[]'):(juego.imagenes||[]);
-  const hasH = juego.hltbMain > 0 || juego.hltbExtra > 0 || juego.hltbComplete > 0;
-  
-
+function Kpi({ icon, n, l, onClick, title, tono }) {
+  const C = onClick ? 'button' : 'div';
   return (
-    <div className="game-tooltip" style={{
-      position:'fixed', left: x + 16 + 260 > window.innerWidth ? x - 16 - 260 : x + 16, top: Math.min(Math.max(y-60, 8), window.innerHeight - 380),
-      pointerEvents:'none', zIndex:9999,
-    }}>
-      {imgs[0] && (
-        <img src={imgSrc(imgs[0])} alt={juego.nombre}
-          style={{width:'100%',height:100,objectFit:'cover',borderRadius:'var(--r) var(--r) 0 0',display:'block'}}/>
-      )}
-      <div style={{padding:'8px 10px'}}>
-        <p style={{fontWeight:600,fontSize:13,color:'var(--text-0)',marginBottom:3}}>{juego.nombre}</p>
-        {juego.genero && <p style={{fontSize:11,color:'var(--text-3)'}}>{juego.genero}</p>}
-        {juego.desarrolladora && <p style={{fontSize:11,color:'var(--text-3)'}}>{juego.desarrolladora}</p>}
-        {juego.fechaLanzamiento && <p style={{fontSize:11,color:'var(--gold)',fontFamily:'var(--font-m)',marginTop:2}}>{juego.fechaLanzamiento}</p>}
-        {juego.precio && <p style={{fontSize:11,color:'var(--gold)',fontFamily:'var(--font-m)'}}>{Number(juego.precio).toFixed(2)} €</p>}
-        {(juego.unidades || 1) > 1 && <p style={{fontSize:11,color:'var(--cyan)'}}>{juego.unidades} unidades</p>}
-
-        {(hasH || juego.ventasTotal > 0 || juego.valoracion) && <div className="gt-sep"/>}
-        {hasH && (
-          <div className="gt-row">
-            <Clock size={11}/>
-            <div className="gt-hltb">
-              <span><b style={{color:'var(--cyan)'}}>{fmtHours(juego.hltbMain)}</b><i>Historia</i></span>
-              <span><b style={{color:'var(--gold)'}}>{fmtHours(juego.hltbExtra)}</b><i>+Extras</i></span>
-              <span><b style={{color:'var(--accent)'}}>{fmtHours(juego.hltbComplete)}</b><i>100%</i></span>
-            </div>
-          </div>
-        )}
-        {juego.ventasTotal > 0 && (
-          <div className="gt-row"><TrendingUp size={11}/><span><b>{fmtUnits(juego.ventasTotal)}</b> vendidos en el mundo</span></div>
-        )}
-        {juego.valoracion && (
-          <div className="gt-row"><Star size={11} style={{color:'var(--gold)'}}/>
-            <span>Mi valoración: <b style={{color:'var(--gold)'}}>{juego.valoracion}/10</b></span></div>
-        )}
-        {juego.comentarios && <p style={{fontSize:10,color:'var(--text-3)',marginTop:6,fontStyle:'italic',lineHeight:1.4}}>{juego.comentarios.slice(0,80)}{juego.comentarios.length>80?'…':''}</p>}
-        <p className="gt-hint"><MousePointerClick size={10}/> Clic para ver y editar</p>
-      </div>
-    </div>
+    <C className={'st-kpi' + (onClick ? ' click' : '') + (tono ? ' ' + tono : '')} onClick={onClick} title={title}>
+      <span className="st-kpi-i">{icon}</span>
+      <span className="st-kpi-n">{n}</span>
+      <span className="st-kpi-l">{l}</span>
+    </C>
   );
 }
 
-// ─── Timeline view ────────────────────────────────────────────────────────────
-function Timeline({ plat, axis, onAxisChange, onBack, onOpen, activeId, panelOpen }) {
-  const [tooltip, setTooltip] = useState({ visible:false, juego:null, x:0, y:0 });
-  const imgs = typeof plat.imagenes==='string'?JSON.parse(plat.imagenes||'[]'):(plat.imagenes||[]);
-  
-
-  const sorted = [...plat.juegos].sort((a,b) => {
-    const va = a[axis]||'', vb = b[axis]||'';
-    if (axis==='precio') return (Number(va)||0)-(Number(vb)||0);
-    return String(va).localeCompare(String(vb),'es');
-  });
-
-  const getLabel = j => {
-    if (axis==='fechaLanzamiento') return j.fechaLanzamiento||'Sin fecha';
-    if (axis==='fechaAdquisicion') return j.fechaAdquisicion||'Sin fecha';
-    if (axis==='precio') return j.precio?`${Number(j.precio).toFixed(2)} €`:'Sin precio';
-    if (axis==='nombre') return j.nombre[0]?.toUpperCase()||'';
-    return '';
-  };
-
-  const showTooltip = (e, j) => setTooltip({ visible:true, juego:j, x:e.clientX, y:e.clientY });
-  const moveTooltip = (e)    => setTooltip(t => ({...t, x:e.clientX, y:e.clientY}));
-  const hideTooltip = ()     => setTooltip(t => ({...t, visible:false}));
-
-  return (
-    <div className="page" style={{ paddingRight: panelOpen ? 416 : undefined, transition:'padding-right 0.3s' }}>
-      <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:24}}>
-        <button className="btn btn-ghost btn-sm" onClick={onBack}><ArrowLeft size={15}/> Volver</button>
-        <div style={{flex:1}}>
-          <h1 className="page-title">{plat.nombre}</h1>
-          <p className="page-sub">{sorted.length} juegos · pasa el ratón para ver detalles, haz clic para editar</p>
-        </div>
-        {imgs[0] && <img src={imgSrc(imgs[0])} alt={plat.nombre}
-          style={{width:80,height:56,objectFit:'cover',borderRadius:'var(--r-lg)',border:'1px solid var(--border)'}}/>}
-      </div>
-
-      {/* Axis selector */}
-      <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:28,flexWrap:'wrap'}}>
-        <SortAsc size={15} style={{color:'var(--text-2)'}}/>
-        <span style={{fontSize:12,color:'var(--text-2)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.05em'}}>Ordenar por</span>
-        {TIMELINE_AXES.map(ax => (
-          <button key={ax.id} onClick={() => onAxisChange(ax.id)} style={{
-            padding:'5px 14px',borderRadius:20,fontSize:12,fontWeight:500,cursor:'pointer',transition:'all .15s',
-            background:axis===ax.id?'var(--accent-glow)':'var(--bg-3)',
-            border:axis===ax.id?'1px solid rgba(230,57,70,.4)':'1px solid var(--border)',
-            color:axis===ax.id?'var(--accent)':'var(--text-2)',
-          }}>{ax.label}</button>
-        ))}
-      </div>
-
-      {/* Timeline */}
-      <div className="timeline">
-        <div className="timeline-line"/>
-        {sorted.map((j, i) => {
-          const jImgs = typeof j.imagenes==='string'?JSON.parse(j.imagenes||'[]'):(j.imagenes||[]);
-          const label = getLabel(j);
-          const side  = i%2===0?'left':'right';
-          return (
-            <div key={j.id} className={`tl-item tl-${side}${activeId === j.id ? ' tl-active' : ''}`}
-              onMouseEnter={e => !panelOpen && showTooltip(e, j)}
-              onMouseMove={e => !panelOpen && moveTooltip(e)}
-              onMouseLeave={hideTooltip}
-              onClick={() => { hideTooltip(); onOpen?.(j); }}
-              style={{ cursor: 'pointer' }}>
-              <div className="tl-card">
-                {jImgs[0]
-                  ? <img src={imgSrc(jImgs[0])} alt={j.nombre} className="tl-img"/>
-                  : <div className="tl-no-img">🎮</div>}
-                <div className="tl-info">
-                  <p className="tl-name">{j.nombre}</p>
-                  <p className="tl-label">{label}</p>
-                  {j.genero && <p className="tl-genre">{j.genero}</p>}
-                </div>
-              </div>
-              <div className="tl-dot"/>
-              <div className="tl-axis-label">{label}</div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Hover tooltip — rendered at mouse position */}
-      <GameTooltip {...tooltip}/>
-    </div>
-  );
-}

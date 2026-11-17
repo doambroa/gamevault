@@ -1,4 +1,6 @@
 # GameVault (versión web / iPhone)
+DirectoryIndex index.html
+Options -Indexes
 AddType application/manifest+json .webmanifest
 AddType application/wasm .wasm
 <IfModule mod_headers.c>
