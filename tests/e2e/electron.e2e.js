@@ -221,6 +221,17 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
     const row = page.locator('tr', { has: page.locator('td.td-name', { hasText: 'Mario Kart 8 Deluxe: Booster Course' }) });
     await row.locator('.icon-btn').first().click();
     const modal = page.locator('.modal-box');
+    // Seleccionar texto arrastrando desde un campo y soltar fuera de la ventana NO debe cerrarla
+    const campo = modal.locator('input[type=text], input:not([type])').first();
+    const cb = await campo.boundingBox();
+    await page.mouse.move(cb.x + cb.width - 5, cb.y + cb.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(cb.x - 200, cb.y + 10, { steps: 8 });
+    const ov = await page.locator('.modal-overlay').boundingBox();
+    await page.mouse.move(ov.x + 10, ov.y + 10, { steps: 4 });
+    await page.mouse.up();
+    await page.waitForTimeout(250);
+    assert(await modal.isVisible(), 'la ventana se cerró al soltar fuera tras arrastrar');
     await uds(modal).fill('4');
     await modal.getByRole('button', { name: '9', exact: true }).click();
     await modal.getByRole('button', { name: /Guardar cambios/ }).click();
@@ -228,6 +239,12 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
     await page.locator('td.td-name', { hasText: 'Mario Kart 8 Deluxe: Booster Course' }).click();
     await page.locator('.jp-panel').getByText('4 (duplicado)').waitFor();
     await page.locator('.jp-panel .jp-close').click();
+    // Un clic normal fuera sí la cierra
+    await row.locator('.icon-btn').first().click();
+    await modal.waitFor();
+    const ov2 = await page.locator('.modal-overlay').boundingBox();
+    await page.mouse.click(ov2.x + 10, ov2.y + 10);
+    await modal.waitFor({ state: 'detached', timeout: 3000 });
   });
 
   // ── Importar colección (TXT) ──────────────────────────────────────────────

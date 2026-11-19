@@ -34,6 +34,10 @@ Las bases de datos de versiones anteriores se actualizan solas al abrir la 1.8 (
 
 ---
 
+## Novedades de la 2.2.1
+
+- Seleccionar texto arrastrando dentro de una ventana y soltar fuera ya no la cierra.
+
 ## Novedades de la 2.2
 
 - **La pila de la vergüenza** (menú «La pila»): los juegos que tienes y aún no te has pasado, cuántas horas suman y cuánto tardarías a 2 h al día. Cada mes propone un **reto** con dos de los más cortos, enseña los más olvidados y los agrupa por duración. Los que no tienen final (Mario Kart, FIFA…) se marcan con «No tiene final» en la ficha del juego y salen de la pila.

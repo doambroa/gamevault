@@ -1,5 +1,11 @@
 # GameVault — Informe de pruebas y errores corregidos
 
+## Versión 2.2.1 (19-11-2026)
+
+Unitarias 46/46 · escritorio 41/41 · comunidad 36/36 · Android 16/16 · iPhone 9/9 · accesorios 8/8.
+
+1. **Las ventanas se cerraban al seleccionar texto** si empezabas a arrastrar dentro (por ejemplo en la ficha de un juego) y soltabas fuera. Ahora el fondo solo cierra la ventana si pulsas y sueltas sobre el propio fondo. Vale para todas las ventanas (fichas, editar, pedir, recordar, panel lateral del juego, menús del móvil). Prueba nueva: arrastrar desde un campo y soltar fuera no cierra; un clic normal fuera sí cierra (sin el arreglo la prueba falla).
+
 ## Versión 2.2 (19-11-2026)
 
 Unitarias 46/46 · escritorio 41/41 · comunidad 36/36 (dos pasadas) · Android 16/16 · iPhone 9/9 · accesorios 8/8. Todas las pruebas de versiones anteriores siguen pasando. Probado además en el servidor real: la copia semanal se crea, contiene las colecciones y no se puede descargar desde fuera (403).
