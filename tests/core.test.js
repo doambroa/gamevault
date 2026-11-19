@@ -152,6 +152,37 @@ test('CRUD juegos + filtros + préstamos', () => {
   assert.equal(c.handlers['j:all']().length, 1);
 });
 
+test('historial de préstamos y «sin final» (2.2): se guardan, se exportan y vuelven al importar', () => {
+  const c = mk();
+  const p = c.handlers['p:create']({ nombre: 'Switch' });
+  const j = c.handlers['j:create']({ plataformaId: p.id, nombre: 'Mario Kart 8', autoEnrich: false });
+  c.handlers['j:prestar']({ id: j.id, prestadoA: 'Ana', fechaPrestamo: '2026-01-10' });
+  c.handlers['j:prestar']({ id: j.id, prestadoA: 'Zlotny', prestadoUsuario: 'zlotny', fechaPrestamo: '2026-03-01' });   // cambia de manos
+  c.handlers['j:prestar']({ id: j.id, prestadoA: 'Zlotny', prestadoUsuario: 'zlotny', fechaPrestamo: '2026-03-01' });   // mismo préstamo: no duplica
+  c.handlers['j:devolver'](j.id);
+  c.handlers['j:devolver'](j.id);                                                                                       // devolver dos veces: no duplica
+  let r = c.handlers['j:all']().find(x => x.id === j.id);
+  const h = JSON.parse(r.historialPrestamos);
+  assert.equal(h.length, 2);
+  assert.deepEqual(h.map(x => x.a), ['Ana', 'Zlotny']);
+  assert.equal(h[0].desde, '2026-01-10'); assert.equal(h[1].au, 'zlotny'); assert.match(h[1].hasta, /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal(r.prestadoA, null);
+  c.handlers['j:sinFinal']({ id: j.id, valor: true });
+  assert.equal(c.handlers['j:all']().find(x => x.id === j.id).sinFinal, 1);
+  // editar el juego desde el formulario no borra ni el historial ni la marca
+  c.handlers['j:update']({ id: j.id, nombre: 'Mario Kart 8', comentarios: 'hola' });
+  r = c.handlers['j:all']().find(x => x.id === j.id);
+  assert.equal(r.sinFinal, 1); assert.equal(JSON.parse(r.historialPrestamos).length, 2);
+  // viaja con la sincronización
+  const exp = c.handlers['sync:export']();
+  const c2 = mk();
+  c2.handlers['sync:import'](exp);
+  const r2 = c2.handlers['j:all']()[0];
+  assert.equal(r2.sinFinal, 1); assert.equal(JSON.parse(r2.historialPrestamos).length, 2);
+  c.handlers['j:sinFinal']({ id: j.id, valor: false });
+  assert.equal(c.handlers['j:all']().find(x => x.id === j.id).sinFinal, null);
+});
+
 test('deseos: crear, mover a colección (con unidades=1) y borrar', () => {
   const c = mk();
   const p = c.handlers['p:create']({ nombre: 'N64' });

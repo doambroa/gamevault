@@ -1,6 +1,10 @@
 package com.gamevault.app;
 
 import android.app.Activity;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.ClipData;
 import android.content.ContentResolver;
 import android.content.ContentValues;
@@ -260,7 +264,37 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
-        public String version() { return "2.1.2"; }
+        public String version() { return "2.2.0"; }
+
+        // Avisos de GameVault (te piden un juego, te recuerdan una devolución) como notificación de Android
+        @JavascriptInterface
+        public void notify(final String title, final String text) {
+            runOnUiThread(new Runnable() { public void run() {
+                try {
+                    NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+                    Notification.Builder b;
+                    if (Build.VERSION.SDK_INT >= 26) {
+                        nm.createNotificationChannel(new NotificationChannel("avisos", "Avisos de GameVault", NotificationManager.IMPORTANCE_DEFAULT));
+                        b = new Notification.Builder(MainActivity.this, "avisos");
+                    } else {
+                        b = new Notification.Builder(MainActivity.this);
+                    }
+                    Intent i = new Intent(MainActivity.this, MainActivity.class);
+                    i.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                    PendingIntent pi = PendingIntent.getActivity(MainActivity.this, 0, i, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+                    b.setSmallIcon(getApplicationInfo().icon).setContentTitle(title).setContentText(text)
+                     .setStyle(new Notification.BigTextStyle().bigText(text)).setAutoCancel(true).setContentIntent(pi);
+                    nm.notify((int) (System.currentTimeMillis() & 0xfffffff), b.build());
+                } catch (Exception e) { /* sin permiso o sin canal: no pasa nada */ }
+            }});
+        }
+
+        @JavascriptInterface
+        public void pedirPermisoAvisos() {
+            if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                runOnUiThread(new Runnable() { public void run() { requestPermissions(new String[] { "android.permission.POST_NOTIFICATIONS" }, 77); } });
+            }
+        }
 
         // Catálogo en PDF: se carga el HTML en una WebView aparte y se manda al sistema de impresión,
         // donde se elige «Guardar como PDF».

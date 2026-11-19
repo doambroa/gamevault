@@ -261,3 +261,44 @@ button.lz-mov-p:hover span{text-decoration:underline}
 .lz-copia-dueno{font-size:13px}
 .lz-copia-st{font-size:12.5px}
 .lz-copia-btn{font-size:12.5px;padding:5px 12px}
+
+/* Avisos (campana) */
+.sidebar-account{display:flex;align-items:center;gap:6px}
+.sidebar-account>.gv-accbtn{flex:1;min-width:0}
+.gv-bell-wrap{position:relative}
+.gv-bell{position:relative;width:38px;height:38px;border-radius:50%;border:1px solid var(--border);background:var(--bg-2);color:var(--text-2);display:flex;align-items:center;justify-content:center}
+.gv-bell:hover{color:var(--text-0);border-color:var(--cyan)}
+.gv-bell.on{color:var(--gold);border-color:var(--gold)}
+.gv-bell b{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 5px;border-radius:99px;background:var(--accent);color:#fff;font-size:10.5px;display:flex;align-items:center;justify-content:center}
+.gv-avisos{position:absolute;z-index:950;top:calc(100% + 8px);left:0;width:360px;max-width:calc(100vw - 24px);background:var(--bg-2);border:1px solid var(--border);border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.45);overflow:hidden}
+.gv-bell-wrap.menu .gv-avisos{position:fixed;left:12px;right:12px;top:auto;bottom:calc(80px + env(safe-area-inset-bottom));width:auto}
+.gv-avisos-h{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border)}
+.gv-avisos-h b{font-size:14px;color:var(--text-0)}
+.gv-avisos-list{max-height:min(420px,60vh);overflow-y:auto}
+.gv-aviso{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--border);padding:10px 14px;color:var(--text-1);font-size:13px;line-height:1.45}
+.gv-aviso:hover{background:var(--bg-3)}
+.gv-aviso.nuevo{background:rgba(250,204,21,.07)}
+.gv-aviso.nuevo .gv-aviso-txt{color:var(--text-0)}
+.gv-aviso-av{position:relative;flex-shrink:0}
+.gv-aviso-av i{position:absolute;right:-3px;bottom:-3px;width:17px;height:17px;border-radius:50%;background:var(--bg-4);color:var(--text-0);display:flex;align-items:center;justify-content:center;border:2px solid var(--bg-2)}
+.gv-aviso.t-peticion .gv-aviso-av i{background:var(--cyan);color:#05222a}
+.gv-aviso.t-aceptada .gv-aviso-av i{background:var(--green);color:#fff}
+.gv-aviso.t-recordatorio .gv-aviso-av i{background:var(--gold);color:#1a1400}
+.gv-aviso-txt{flex:1;min-width:0}
+.gv-aviso-txt small{display:block;color:var(--text-3);font-size:11.5px;margin-top:2px}
+.gv-avisos-sis{display:flex;gap:8px;align-items:flex-start;padding:10px 14px;font-size:12.5px;color:var(--text-1);background:var(--bg-1);cursor:pointer}
+.gv-avisos-sis small{color:var(--text-3)}
+/* Recordatorios y tiempo de préstamo */
+.lz-mio-btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.lz-tiempo{display:inline-flex;align-items:center;gap:4px;margin-top:4px;font-size:11.5px;color:var(--text-2);background:var(--bg-3);border-radius:99px;padding:2px 9px;width:fit-content}
+.lz-tiempo.ambar{color:#b7791f;background:rgba(250,204,21,.14)}
+.lz-tiempo.rojo{color:var(--accent);background:rgba(230,57,70,.12);font-weight:600}
+[data-theme=dark] .lz-tiempo.ambar{color:var(--gold)}
+.lz-recordar-txt{background:var(--bg-3);border-radius:var(--r);padding:12px 14px;font-size:14px;color:var(--text-0);line-height:1.5}
+/* Lista de deseos cruzada */
+.lz-deseos{background:linear-gradient(135deg,rgba(230,57,70,.07),transparent 55%),var(--bg-2);border:1px solid rgba(230,57,70,.35);border-radius:var(--r-lg);padding:12px 14px;margin-bottom:18px}
+.lz-deseo{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.lz-deseo:last-child{border-bottom:0}
+.lz-deseo .lz-mio-info{min-width:150px;flex:0 1 240px}
+.lz-deseo .lz-copias{flex:1;min-width:200px}
+.gv-cruce{display:flex;flex-wrap:wrap;margin-bottom:12px}.gv-cruce .seg-btn{gap:6px}

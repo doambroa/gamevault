@@ -620,3 +620,17 @@ a{color:inherit;text-decoration:none}
   .shell{height:calc(100vh / var(--z,1));width:calc(100vw / var(--z,1))}
   .modal-box{max-height:calc(85vh / var(--z,1))}
 }
+
+/* Historial de préstamos y «no tiene final» */
+.hist-prest{margin:14px 0 4px}
+.hist-prest .jp-section-title span{text-transform:none;letter-spacing:0;font-weight:400;color:var(--text-3)}
+.hist-prest ol{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:4px}
+.hist-prest li{display:flex;gap:10px;align-items:baseline;font-size:13px;padding:6px 10px;background:var(--bg-3);border-radius:var(--r)}
+.hist-prest li b{color:var(--text-0);min-width:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hist-prest li span{font-family:var(--font-m);font-size:11.5px;color:var(--text-2)}
+.hist-prest li em{font-style:normal;font-size:11.5px;color:var(--text-3);min-width:62px;text-align:right}
+.jp-sinfinal{display:flex;gap:8px;align-items:center;margin-top:12px;font-size:13px;color:var(--text-1);cursor:pointer}
+.jp-sinfinal small{color:var(--text-3)}
+.deseo-lotienen{display:flex;align-items:center;gap:4px;margin-top:5px;background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.35);color:var(--text-0);border-radius:99px;padding:2px 10px 2px 3px;font-size:11.5px;font-weight:500;max-width:100%}
+.deseo-lotienen span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-left:3px}
+.deseo-lotienen:hover{border-color:var(--cyan)}

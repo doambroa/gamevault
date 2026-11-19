@@ -186,7 +186,7 @@ export function createWebApi() {
       getAll: f => call('j:all', f), getById: id => call('j:one', id), getByPlataforma: id => call('j:byPlat', id),
       create: d => call('j:create', d), update: d => call('j:update', d), delete: id => call('j:delete', id),
       needsCovers: () => call('j:needsCovers'), updateCovers: d => call('j:updateCovers', d),
-      prestados: () => call('j:prestados'), prestar: d => call('j:prestar', d), devolver: id => call('j:devolver', id),
+      prestados: () => call('j:prestados'), prestar: d => call('j:prestar', d), devolver: id => call('j:devolver', id), sinFinal: d => call('j:sinFinal', d),
       hltbFetch: d => call('j:hltbFetch', d), ventasFetch: d => call('j:ventasFetch', d),
     },
     deseos: {
@@ -267,6 +267,8 @@ export function createWebApi() {
     sync: {
       export: () => call('sync:export'),
       import: async obj => { const r = await call('sync:import', obj); await flushNow(); return r; },
+      // espera a que lo último esté guardado de verdad en el aparato (IndexedDB)
+      flush: () => flushNow(),
     },
     wiki: {
       // Wikipedia y upload.wikimedia.org permiten CORS: petición directa

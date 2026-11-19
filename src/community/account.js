@@ -261,6 +261,9 @@ async function push({ force = false } = {}) {
     const s = getSync();
     const r = await call('save', { method: 'POST', body: { baseRev: s.user === user ? s.rev || 0 : 0, data, device: DEVICE, force } });
     firstDirtyAt = 0;
+    // antes de dar la subida por buena, que lo subido esté también guardado en este aparato:
+    // si no, al recargar justo después se abriría una copia local anterior a la de la cuenta
+    try { await api.sync.flush?.(); } catch {}
     setSync({ user, rev: r.rev, dirty: dirtySeq !== seq });
     set({ conflict: null });
     setSyncSt('ok', 'Todo guardado en tu cuenta');
@@ -402,9 +405,75 @@ export async function contestarPeticion(r, accept) {
   await call('req_answer', { method: 'POST', body: { id: r.id, accept } });
   return refreshRequests();
 }
-// Se miran al entrar, cada 2 minutos y al volver a la ventana
+// ── Avisos (te piden un juego, te contestan, te recuerdan que devuelvas algo) ──
+let notState = { avisos: [], sinLeer: 0, cargado: false };
+const notSubs = new Set();
+const LS_VISTOS = 'gv-avisos-vistos', LS_SISTEMA = 'gv-avisos-sistema';
+export function useNotifs() {
+  return useSyncExternalStore(fn => { notSubs.add(fn); return () => notSubs.delete(fn); }, () => notState);
+}
+export async function refreshNotifs() {
+  if (!state.me) return notState;
+  try {
+    const r = await call('notifs');
+    notState = { ...r, cargado: true }; notSubs.forEach(f => f());
+    avisarSistema(r.avisos || []);
+  } catch {}
+  return notState;
+}
+export async function marcarLeidos(ids) {
+  try { await call('notifs_read', { method: 'POST', body: ids ? { ids } : {} }); } catch {}
+  return refreshNotifs();
+}
+export const recordarPrestamo = (to, id, msg = '') => call('remind', { method: 'POST', body: { to, id, msg } });
+
+// Avisos del sistema (Windows, Android, navegador) para los que aún no se han visto en este aparato
+export const sistemaDisponible = () => !!window.GVAndroid?.notify || typeof window.Notification === 'function';
+export const sistemaActivado = () => lsGet(LS_SISTEMA, false) && (window.GVAndroid?.notify ? true : window.Notification?.permission === 'granted');
+export async function activarSistema(on = true) {
+  if (!on) { lsSet(LS_SISTEMA, false); return false; }
+  let ok = true;
+  if (window.GVAndroid?.notify) { try { window.GVAndroid.pedirPermisoAvisos?.(); } catch {} }
+  else if (window.Notification) ok = (window.Notification.permission === 'granted') || (await window.Notification.requestPermission()) === 'granted';
+  lsSet(LS_SISTEMA, ok);
+  if (ok) lsSet(LS_VISTOS, (notState.avisos || []).map(n => n.id));   // no repetir los que ya había
+  return ok;
+}
+function avisarSistema(avisos) {
+  const previos = lsGet(LS_VISTOS, null);           // null = primera vez en este aparato: no avisar de lo antiguo
+  const vistos = new Set(previos || []);
+  const nuevos = avisos.filter(n => !n.leida && !vistos.has(n.id));
+  lsSet(LS_VISTOS, avisos.map(n => n.id).slice(0, 100));
+  if (!previos || !nuevos.length || !sistemaActivado()) return;
+  for (const n of nuevos.slice(0, 3)) {
+    const titulo = n.tipo === 'peticion' ? 'Te piden un juego' : n.tipo === 'recordatorio' ? 'Recordatorio de préstamo' : 'GameVault';
+    try {
+      if (window.GVAndroid?.notify) window.GVAndroid.notify(titulo, n.texto);
+      else { const x = new window.Notification(titulo, { body: n.texto, tag: n.id, icon: 'icon-192.png' }); x.onclick = () => { window.focus(); window.location.hash = '#/prestamos'; }; }
+    } catch {}
+  }
+}
+
+// ── Copias de seguridad del servidor (administradores) ──
+export const fetchBackups = () => call('backups');
+export const backupNow = () => call('backup_now', { method: 'POST', body: {} });
+export async function descargarBackup(nombre) {
+  const headers = { 'X-GV': '1' }; const t = token(); if (t) headers['X-GV-Token'] = t;
+  const r = await fetch(state.server + 'api.php?action=backup_get&n=' + encodeURIComponent(nombre), { headers, credentials: IS_APP ? 'omit' : 'same-origin' });
+  if (!r.ok) throw new Error('No se pudo descargar la copia');
+  const blob = await r.blob();
+  if (window.GVAndroid?.saveFile) {               // Android: el mismo camino que «Exportar JSON»
+    const txt = nombre.endsWith('.gz') ? null : await blob.text();
+    if (txt) { window.GVAndroid.saveFile(nombre, txt); return; }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nombre;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+}
+
+// Peticiones y avisos se miran al entrar, cada 2 minutos y al volver a la ventana
+const refrescarTodo = () => { refreshRequests(); refreshNotifs(); };
 if (typeof window !== 'undefined') {
-  setInterval(() => { if (state.me && document.visibilityState === 'visible') refreshRequests(); }, 120000);
-  window.addEventListener('focus', () => { if (state.me) refreshRequests(); });
-  subs.add(() => { if (state.me && !reqState.cargado) refreshRequests(); });
+  setInterval(() => { if (state.me && (document.visibilityState === 'visible' || sistemaActivado())) refrescarTodo(); }, 120000);
+  window.addEventListener('focus', () => { if (state.me) refrescarTodo(); });
+  subs.add(() => { if (state.me && !reqState.cargado) refreshRequests(); if (state.me && !notState.cargado) refreshNotifs(); });
 }

@@ -1,20 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, ArrowRight, ArrowLeftRight, Gamepad2, Check, RefreshCw, ChevronDown, Undo2, Users, Hand, X, LayoutGrid, Rows3, Inbox } from 'lucide-react';
+import { Search, ArrowRight, ArrowLeftRight, Gamepad2, Check, RefreshCw, ChevronDown, Undo2, Users, Hand, X, LayoutGrid, Rows3, Inbox, BellRing, Copy, Clock3, Heart } from 'lucide-react';
 import { useCollapse, GroupHead, CollapseAll } from '../utils/useCollapse';
 import { PageHeader, EmptyState, SkeletonList, Btn } from '../components/ui/index';
 import { thumb } from '../utils/imgSrc';
-import { canon, normalize } from '../core/text';
+import { normalize } from '../core/text';
+import { claveJuego, mismaConsola } from './claves';
 import { claveConsola, imagenPorNombre } from '../data/consolas';
-import { useAccount, fetchLoans, pushNow, useRequests, refreshRequests, pedirJuego, cancelarPeticion, contestarPeticion } from './account';
+import { useAccount, fetchLoans, pushNow, recordarPrestamo, useRequests, refreshRequests, pedirJuego, cancelarPeticion, contestarPeticion } from './account';
 import { Avatar, PrestarModal } from './ui';
 import { NeedAccount } from './ComunidadPage';
 
 const api = window.api;
 const fechaEs = f => (f ? f.split('-').reverse().join('/') : '');
-// Clave para juntar el mismo juego aunque cada uno lo escriba a su manera
-const claveJuego = n => canon(String(n).replace(/\(.*?\)/g, ' ').replace(/[®™]/g, ''))
-  .replace(/\b(the|el|la|los|las|definitive edition|deluxe|remastered|edicion|edition)\b/g, ' ').replace(/\s+/g, '');
 const masComun = lista => { const c = {}; let best = lista[0]; for (const x of lista) { c[x] = (c[x] || 0) + 1; if (c[x] > c[best]) best = x; } return best; };
 
 /* Junta los juegos de todo el mundo: consola → juego → copias (una por dueño).
@@ -56,13 +54,33 @@ export default function PrestamosPage() {
   const setModo = m => { setModoSt(m); try { localStorage.setItem('gv-prestamos-modo', m); } catch {} };
   const pleg = useCollapse('prestamos');
   const reqs = useRequests();
-  const [pedir, setPedir] = useState(null);            // { c, J } copia de otra persona que quiero pedir
+  const [pedir, setPedir] = useState(null);
+  const [recordar, setRecordar] = useState(null);       // { J, c } préstamo mío al que mandar un recordatorio
+  const [misDeseos, setMisDeseos] = useState([]);
 
-  const load = useCallback(() => { refreshRequests(); return fetchLoans().then(g => { setGente(g); setErr(''); }).catch(e => setErr(e.message)); }, []);
+  const load = useCallback(() => { refreshRequests(); api?.deseos?.getAll().then(setMisDeseos).catch(() => {}); return fetchLoans().then(g => { setGente(g); setErr(''); }).catch(e => setErr(e.message)); }, []);
   useEffect(() => { if (me) load(); }, [me, load]);
 
   const plats = useMemo(() => agrupar(gente || []), [gente]);
   const porUsuario = useMemo(() => Object.fromEntries((gente || []).map(g => [g.user, g])), [gente]);
+
+  // Lista de deseos cruzada: lo que quiero y ya tiene alguien de la comunidad
+  const deseados = useMemo(() => {
+    if (!me) return [];
+    const out = [];
+    for (const d of misDeseos) {
+      const k = claveJuego(d.nombre);
+      for (const P of plats) {
+        if (!mismaConsola(d.plataforma, P.nombre)) continue;
+        for (const J of P.juegos) {
+          if (!J.clave.endsWith('|' + k)) continue;
+          const copias = J.copias.filter(c => c.dueno.user !== me.user);
+          if (copias.length) out.push({ d, J, P, copias });
+        }
+      }
+    }
+    return out;
+  }, [misDeseos, plats, me]);
 
   // Mis movimientos: lo que he dejado y lo que tengo de otros
   // Todos los préstamos en curso de la comunidad: la tabla «quién tiene el juego de quién»
@@ -77,7 +95,8 @@ export default function PrestamosPage() {
       if (c.dueno.user === me.user && c.a) dej.push({ J, P, c });
       if (c.au === me.user && c.dueno.user !== me.user) rec.push({ J, P, c });
     }
-    return { dejados: dej, recibidos: rec };
+    const viejo = (a, b) => String(a.c.f || '9').localeCompare(String(b.c.f || '9'));   // lo que más tiempo lleva fuera, primero
+    return { dejados: dej.sort(viejo), recibidos: rec.sort(viejo) };
   }, [plats, me]);
 
   if (!me) return <NeedAccount titulo="Zona de préstamos"/>;
@@ -121,6 +140,19 @@ export default function PrestamosPage() {
       ) : (<>
         <Peticiones reqs={reqs} busy={busy} onContestar={contestar} onCancelar={r => cancelarPeticion(r.id)}/>
 
+        {deseados.length > 0 && (
+          <div className="lz-deseos">
+            <p className="section-title"><Heart size={13} style={{ verticalAlign: -2 }}/> De tu lista de deseos <span>({deseados.length} {deseados.length === 1 ? 'juego lo tiene' : 'juegos los tiene'} alguien)</span></p>
+            {deseados.map(({ d, J, P, copias }) => (
+              <div key={d.id + J.clave} className="lz-deseo">
+                <Cover img={J.img}/>
+                <div className="lz-mio-info"><b>{J.nombre}</b><small>{P.nombre}</small></div>
+                <div className="lz-copias">{copias.map((c, i) => <Copia key={i} c={c} porUsuario={porUsuario} busy={busy} {...accionesCopia(c, J)}/>)}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Mis préstamos, de un vistazo */}
         {(dejados.length > 0 || recibidos.length > 0) && (
           <div className="lz-mios">
@@ -132,8 +164,12 @@ export default function PrestamosPage() {
                   <Cover img={J.img}/>
                   <div className="lz-mio-info"><b>{J.nombre}</b><small>{P.nombre}</small>
                     <span className="lz-flecha"><ArrowRight size={12}/> <Quien c={c} porUsuario={porUsuario}/>{c.f && <em> · desde el {fechaEs(c.f)}</em>}</span>
+                    <Tiempo f={c.f}/>
                   </div>
-                  <button className="btn btn-secondary btn-sm" onClick={() => devolver(c)} disabled={busy}><Undo2 size={13}/> Devuelto</button>
+                  <div className="lz-mio-btns">
+                    <button className="btn btn-ghost btn-sm" onClick={() => setRecordar({ J, c })} title="Recordarle que te lo devuelva"><BellRing size={13}/> Recordar</button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => devolver(c)} disabled={busy}><Undo2 size={13}/> Devuelto</button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -145,6 +181,7 @@ export default function PrestamosPage() {
                   <Cover img={J.img}/>
                   <div className="lz-mio-info"><b>{J.nombre}</b><small>{P.nombre}</small>
                     <span className="lz-flecha">es de <Avatar user={c.dueno} size={18}/> {c.dueno.display}{c.f && <em> · desde el {fechaEs(c.f)}</em>}</span>
+                    <Tiempo f={c.f} mio={false}/>
                   </div>
                 </div>
               ))}
@@ -254,6 +291,7 @@ export default function PrestamosPage() {
 
       <PrestarModal open={!!prestar} juego={prestar} onClose={() => setPrestar(null)} onSaved={trasCambio}/>
       <PedirModal p={pedir} onClose={() => setPedir(null)}/>
+      <RecordarModal r={recordar} porUsuario={porUsuario} onClose={() => setRecordar(null)}/>
     </div>
   );
 }
@@ -357,6 +395,68 @@ function Peticiones({ reqs, busy, onContestar, onCancelar }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// Cuánto tiempo lleva fuera un préstamo; a partir de un mes en ámbar y de tres en rojo
+export function diasDesde(f) { if (!f) return null; const d = Math.floor((Date.now() - new Date(f + 'T12:00:00').getTime()) / 86400000); return d >= 0 ? d : null; }
+export function textoTiempo(d) {
+  if (d == null) return '';
+  if (d < 1) return 'hoy'; if (d === 1) return '1 día'; if (d < 31) return `${d} días`;
+  const m = Math.round(d / 30.4); if (m < 12) return `${m} mes${m > 1 ? 'es' : ''}`;
+  const y = Math.floor(d / 365); return `${y} año${y > 1 ? 's' : ''}${m - y * 12 > 0 ? ` y ${m - y * 12} mes${m - y * 12 > 1 ? 'es' : ''}` : ''}`;
+}
+function Tiempo({ f, mio = true }) {
+  const d = diasDesde(f);
+  if (d == null) return null;
+  const cls = d >= 90 ? 'rojo' : d >= 30 ? 'ambar' : '';
+  return <span className={'lz-tiempo ' + cls} title={mio ? 'Tiempo que lleva fuera de casa' : 'Tiempo que llevas con él'}>
+    <Clock3 size={11}/> {mio ? 'fuera' : 'lo tienes'} {d < 1 ? 'desde hoy' : `desde hace ${textoTiempo(d)}`}</span>;
+}
+
+// Recordar a quien tiene mi juego que me lo devuelva: si tiene cuenta, le llega un aviso;
+// si no, se copia el mensaje para mandarlo por WhatsApp o donde sea
+function RecordarModal({ r, porUsuario, onClose }) {
+  const [msg, setMsg] = useState('');
+  const [st, setSt] = useState('');
+  useEffect(() => { setMsg(''); setSt(''); }, [r]);
+  if (!r) return null;
+  const { J, c } = r;
+  const conCuenta = !!c.au;
+  const quien = (c.au && porUsuario[c.au]?.display) || c.a;
+  const d = diasDesde(c.f);
+  const texto = `¡Hola, ${quien}! ¿Qué tal con «${J.nombre}»?${d != null && d > 0 ? ` Ya van ${textoTiempo(d)}.` : ''} Cuando acabes, ¿me lo devuelves? 🙂`;
+  const enviar = async () => {
+    setSt('enviando');
+    try { await recordarPrestamo(c.au, c.id, msg); setSt('ok'); setTimeout(onClose, 1300); } catch (e) { setSt(e.message); }
+  };
+  const copiar = async () => {
+    try { if (navigator.share && /Android|iPhone|iPad/i.test(navigator.userAgent)) { await navigator.share({ text: texto }); setSt('ok'); return; } } catch { return; }
+    try { await navigator.clipboard.writeText(texto); setSt('copiado'); } catch { window.prompt('Copia el mensaje:', texto); }
+  };
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box" style={{ maxWidth: 460 }} onClick={e => e.stopPropagation()}>
+        <div className="modal-header"><h3 className="modal-title">Recordar «{J.nombre}»</h3><button className="icon-btn" onClick={onClose}><X size={16}/></button></div>
+        <div className="modal-body">
+          {conCuenta ? (<>
+            <p className="gv-muted" style={{ marginBottom: 10 }}>A <b>{quien}</b> le saldrá un aviso en GameVault{d != null ? ` recordándole que lo tiene desde hace ${textoTiempo(d)}` : ''}.</p>
+            <label className="field-label">Mensaje (opcional)</label>
+            <textarea className="field-input" rows={3} maxLength={300} value={msg} onChange={e => setMsg(e.target.value)} placeholder="¿Me lo traes el sábado?"/>
+          </>) : (<>
+            <p className="gv-muted" style={{ marginBottom: 10 }}><b>{quien}</b> no tiene cuenta en GameVault. Copia este mensaje y mándaselo por donde soléis hablar:</p>
+            <div className="lz-recordar-txt">{texto}</div>
+          </>)}
+          {st && !['enviando', 'ok', 'copiado'].includes(st) && <p className="gv-error">{st}</p>}
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-ghost" onClick={onClose}>Cerrar</button>
+          {conCuenta
+            ? <button className="btn btn-primary" onClick={enviar} disabled={st === 'enviando' || st === 'ok'}>{st === 'ok' ? <><Check size={14}/> Enviado</> : <><BellRing size={14}/> Mandar recordatorio</>}</button>
+            : <button className="btn btn-primary" onClick={copiar}>{st === 'copiado' || st === 'ok' ? <><Check size={14}/> Copiado</> : <><Copy size={14}/> Copiar mensaje</>}</button>}
+        </div>
+      </div>
     </div>
   );
 }

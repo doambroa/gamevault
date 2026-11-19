@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Monitor, Gamepad2, Heart, BarChart2, Upload, Download, Settings, FolderOpen, MoreHorizontal, Users, ArrowLeftRight, Trophy, ExternalLink } from 'lucide-react';
+import { LayoutDashboard, Monitor, Gamepad2, Heart, BarChart2, Upload, Download, Settings, FolderOpen, MoreHorizontal, Users, ArrowLeftRight, Trophy, ExternalLink, Layers } from 'lucide-react';
 import { AccountButton, AccountModal } from '../../community/ui';
-import { useAccount, useRequests, creditosUrl } from '../../community/account';
+import { useAccount, useRequests, useNotifs, creditosUrl } from '../../community/account';
+import { NotifBell } from '../../community/Avisos';
 import SettingsModal from '../ui/index';
 import { Modal, Btn } from '../ui/index';
 import WipeModal from '../ui/WipeModal';
@@ -15,6 +16,7 @@ const NAV = [
   { to:'/juegos',      icon:Gamepad2,         label:'Juegos'         , movil:true  },
   { to:'/deseos',      icon:Heart,            label:'Lista de deseos', movil:false },
   { to:'/stats',       icon:BarChart2,        label:'Estadísticas'   , movil:false },
+  { to:'/pila',        icon:Layers,           label:'La pila'        , movil:false },
 ];
 const NAV_COMUNIDAD = [
   { to:'/prestamos',   icon:ArrowLeftRight,   label:'Préstamos'      , movil:true  },
@@ -35,6 +37,8 @@ export default function Sidebar() {
   const conComunidad = acc.ready && acc.available;
   const reqs = useRequests();
   const nPet = acc.me ? (reqs.recibidas || []).length : 0;
+  const notifs = useNotifs();
+  const nAvisos = acc.me ? notifs.sinLeer || 0 : 0;
   const cfUrl = conComunidad && acc.me?.creditos !== false ? creditosUrl() : null;
   const navItem = ({ to, icon: Icon, label, movil }, extra = '') => (
     <button key={to + extra}
@@ -73,7 +77,7 @@ export default function Sidebar() {
   return (
     <>
       <aside className="sidebar">
-        <div className="sidebar-account"><AccountButton onOpen={() => setShowAccount(true)}/></div>
+        <div className="sidebar-account"><AccountButton onOpen={() => setShowAccount(true)}/><NotifBell/></div>
         <nav className="nav">
           {NAV.map(i => navItem(i))}
           {conComunidad && <div className="nav-sep">Comunidad</div>}
@@ -82,10 +86,12 @@ export default function Sidebar() {
             <Trophy size={18}/><span>Créditos Finales</span><ExternalLink size={12} className="nav-ext-i"/></a>}
           <button className={'nav-item nav-more' + (moreOpen ? ' active' : '')} onClick={() => setMoreOpen(o => !o)}>
             <MoreHorizontal size={18}/><span>Más</span>
+            {nAvisos > 0 && <b className="nav-badge">{nAvisos}</b>}
           </button>
         </nav>
         {moreOpen && <div className="sidebar-scrim" onClick={() => setMoreOpen(false)}/>}
         <div className={'sidebar-footer' + (moreOpen ? ' open' : '')} onClick={() => setMoreOpen(false)}>
+          {conComunidad && <NotifBell variant="menu" onNavigate={() => setMoreOpen(false)}/>}
           {conComunidad && <button className="sidebar-action sidebar-mob" onClick={() => setShowAccount(true)}><Users size={14}/> {acc.me ? 'Mi cuenta' : 'Iniciar sesión'}</button>}
           {[...NAV, ...(conComunidad ? NAV_COMUNIDAD : [])].filter(i => !i.movil).map(i => navItem(i, 'mob'))}
           {cfUrl && <a className="sidebar-action sidebar-mob" href={cfUrl} target="_blank" rel="noreferrer"><Trophy size={14}/> Créditos Finales <ExternalLink size={11}/></a>}

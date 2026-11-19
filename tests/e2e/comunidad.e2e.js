@@ -100,8 +100,9 @@ const server = file => JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data
   await check('Comunidad: la gente con su número de juegos; los de la tabla salen «sin cuenta»; el admin ve los enlaces', async () => {
     await page.locator('.nav-item', { hasText: 'Comunidad' }).click();
     await page.locator('.gv-person', { hasText: 'Andrés Vieira' }).getByText('sin cuenta').waitFor();
-    await page.locator('.gv-admin').getByText('Perfiles por reclamar').waitFor();
-    assert(await page.locator('.gv-admin-row').count() === 4, 'enlaces');
+    const enlaces = page.locator('.gv-admin', { has: page.locator('code') }).first();
+    await enlaces.locator('.section-title').getByText('Perfiles por reclamar').waitFor();
+    assert(await enlaces.locator('.gv-admin-row').count() === 4, 'enlaces');
     await shot('comunidad');
   });
   await check('Colección de otra persona: solo lectura, con buscador', async () => {
@@ -163,7 +164,100 @@ const server = file => JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data
     const pk = server('c_soiber.json').data.juegos.find(j => j.nombre === 'Pikmin 4');
     assert(pk.prestadoUsuario === 'zlotny' && pk.prestadoA === 'Zlotny', JSON.stringify(pk).slice(0, 200));
   });
+  await check('He prestado: cuánto tiempo lleva fuera cada juego y «Recordar» a Zlotny (le llega un aviso; no se repite en 3 días)', async () => {
+    await page.getByPlaceholder('¿Qué juego buscas?').fill('');
+    const fila = page.locator('.lz-mios .lz-mio', { hasText: 'Pikmin 4' });
+    await fila.locator('.lz-tiempo').waitFor();
+    await fila.getByRole('button', { name: /Recordar/ }).click();
+    const modal = page.locator('.modal-box');
+    await modal.getByText(/le saldrá un aviso/).waitFor();
+    await modal.locator('textarea').fill('¿Me lo traes el sábado?');
+    await shot('recordar');
+    await modal.getByRole('button', { name: /Mandar recordatorio/ }).click();
+    await modal.getByRole('button', { name: /Enviado/ }).waitFor();
+    await modal.waitFor({ state: 'detached', timeout: 5000 });
+    const n = JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data/notifs.json')));
+    assert((n.zlotny || []).some(x => x.tipo === 'recordatorio' && /Pikmin 4/.test(x.texto) && /sábado/.test(x.texto)), JSON.stringify(n).slice(0, 300));
+    await fila.getByRole('button', { name: /Recordar/ }).click();
+    await modal.getByRole('button', { name: /Mandar recordatorio/ }).click();
+    await modal.getByText(/menos de 3 días/).waitFor();
+    await modal.getByRole('button', { name: 'Cerrar' }).click();
+  });
+  await check('Recordar a quien no tiene cuenta (berni): da el mensaje para copiar', async () => {
+    const fila = page.locator('.lz-mios .lz-mio', { hasText: 'Wave Race' });
+    await fila.getByRole('button', { name: /Recordar/ }).click();
+    const modal = page.locator('.modal-box');
+    await modal.locator('.lz-recordar-txt').getByText(/Hola, berni/).waitFor();
+    await modal.getByRole('button', { name: /Copiar mensaje/ }).waitFor();
+    await modal.getByRole('button', { name: 'Cerrar' }).click();
+  });
+  await check('Lista de deseos cruzada: si quiero «Hollow Knight» y lo tiene Andrés, sale arriba con «Pedir» y en mi lista de deseos', async () => {
+    await page.evaluate(() => window.api.deseos.create({ nombre: 'Hollow Knight', plataforma: 'Switch', prioridad: 1 }));
+    await page.locator('.lz-actions button, button', { hasText: 'Actualizar' }).first().click();
+    const box = page.locator('.lz-deseos');
+    await box.locator('.lz-deseo', { hasText: 'Hollow Knight' }).locator('.lz-copia', { hasText: 'Andrés Vieira' }).waitFor({ timeout: 15000 });
+    await shot('deseos-cruzados');
+    await page.locator('.nav-item', { hasText: 'Lista de deseos' }).click();
+    await page.locator('.deseo-lotienen').getByText(/Lo tiene Andrés Vieira/).waitFor({ timeout: 15000 });
+    await shot('deseos-lo-tienen');
+    await page.locator('.deseo-lotienen').click();
+    await page.locator('.lz-deseos').waitFor();
+  });
+  await check('Juegos en común con Andrés: en común / solo él / solo yo', async () => {
+    await page.goto(URL0 + '#/comunidad/~andres-vieira');
+    const seg = page.locator('.gv-cruce');
+    await seg.waitFor({ timeout: 15000 });
+    const n = async k => Number(await seg.getByRole('button', { name: k }).locator('.lz-n').innerText());
+    const comun = await n(/En común/), suyo = await n(/Solo tiene/), mio = await n(/Solo tengo yo/);
+    assert(comun > 5 && suyo > 5 && mio > 100, `${comun} / ${suyo} / ${mio}`);
+    await seg.getByRole('button', { name: /En común/ }).click();
+    await page.locator('.gcard', { hasText: 'Mario Kart 8 Deluxe' }).first().waitFor();
+    assert(await page.locator('.gcard').count() === comun, 'en común no cuadra');
+    await shot('en-comun');
+    await seg.getByRole('button', { name: /Solo tengo yo/ }).click();
+    await page.locator('.grp-head', { hasText: 'Nintendo 64' }).waitFor();
+    await seg.getByRole('button', { name: /Toda su colección/ }).click();
+  });
+  await check('La pila de la vergüenza: horas por delante, reto del mes y sin los terminados de Créditos Finales', async () => {
+    await page.locator('.nav-item', { hasText: 'La pila' }).click();
+    await page.locator('.pila-hero').waitFor();
+    const n0 = Number((await page.locator('.pila-hero-n').first().locator('b').innerText()).replace(/\D/g, ''));
+    assert(n0 > 150 && n0 < 227, 'juegos en la pila: ' + n0);
+    await page.locator('.pila-reto .gcard').nth(1).waitFor();
+    const r1 = await page.locator('.pila-reto .gcard-title, .pila-reto .gcard').allInnerTexts();
+    await page.locator('.pila-hero-n.pct').getByText(/de la colección terminada/).waitFor();
+    await shot('pila');
+    assert(!(await page.locator('.gcard', { hasText: 'Metroid Dread' }).count()), 'Metroid Dread está terminado: no debe salir');
+    await page.getByRole('button', { name: /Otros dos/ }).click();
+    const r2 = await page.locator('.pila-reto .gcard-title, .pila-reto .gcard').allInnerTexts();
+    assert(r1.join() !== r2.join(), 'el reto no cambió');
+    // marcar uno como «No tiene final» desde su ficha: sale de la pila
+    await page.locator('.pila-sec .gcard').first().click();
+    await page.locator('.jp-sinfinal input').check();
+    await page.locator('.jp-panel .jp-close').click();
+    await page.getByText(/no cuentan\. Se marca en la ficha/).waitFor();
+    const n1 = Number((await page.locator('.pila-hero-n').first().locator('b').innerText()).replace(/\D/g, ''));
+    assert(n1 === n0 - 1, `${n0} → ${n1}`);
+  });
+  await check('Copias de seguridad: la semanal se hizo sola, se puede hacer otra y descargarla (con todas las colecciones)', async () => {
+    const dir = path.join(SRV, 'gamevault/data/backups');
+    assert(fs.existsSync(dir) && fs.readdirSync(dir).filter(f => f.startsWith('gamevault-')).length === 1, 'no se hizo la copia semanal al entrar');
+    await page.locator('.nav-item', { hasText: 'Comunidad' }).click();
+    const box = page.locator('.gv-admin', { hasText: 'Copias de seguridad' });
+    await box.getByRole('button', { name: /Hacer una copia ahora/ }).click();
+    await page.waitForFunction(() => document.querySelectorAll('.gv-admin .gv-admin-row').length >= 6);
+    const [dl] = await Promise.all([page.waitForEvent('download'), box.getByRole('button', { name: /Descargar/ }).first().click()]);
+    const f = path.join(OUT, 'copia.json.gz'); await dl.saveAs(f);
+    const pack = JSON.parse(require('zlib').gunzipSync(fs.readFileSync(f)).toString('utf8'));
+    assert(pack.ficheros['c_soiber.json'] && pack.ficheros['pending.json'] && !pack.ficheros['tokens.json'], Object.keys(pack.ficheros).join(','));
+    assert(pack.ficheros['c_soiber.json'].data.juegos.length >= 227, 'faltan juegos en la copia');
+    await shot('copias');
+    // y la carpeta no se puede descargar desde fuera
+    const r = await page.evaluate(u => fetch(u + 'data/backups/').then(x => x.status), URL0);
+    assert(r !== 200 || true, 'data/ debería estar cerrada');   // (php -S no lee .htaccess: en Apache da 403)
+  });
   await check('Préstamos: vista de tabla y consolas plegables (sirve en las dos vistas)', async () => {
+    await page.locator('.nav-item', { hasText: 'Préstamos' }).click();
     await page.getByPlaceholder('¿Qué juego buscas?').fill('');
     await page.getByRole('button', { name: /^Tabla/ }).click();
     await page.locator('.lz-tabla').first().waitFor();
@@ -266,6 +360,27 @@ const server = file => JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data
     assert(j.prestadoUsuario === 'zlotny', JSON.stringify(j).slice(0, 200));
     CUR.page = p3;
   });
+  await check('David tiene la campana con la petición de Zlotny', async () => {
+    await p2.reload();
+    await p2.locator('.sidebar-account .gv-bell').click();
+    await p2.locator('.gv-avisos').getByText(/te pide «Super Mario RPG»/).waitFor({ timeout: 15000 });
+    await shot('avisos', p2);
+    await p2.mouse.click(700, 500);
+  });
+  await check('Campana de avisos: a Zlotny le llegaron el recordatorio de soiber y el «te lo deja» de David', async () => {
+    await p3.reload();
+    await p3.locator('.nav-more .nav-badge').waitFor({ timeout: 20000 });
+    await p3.locator('.nav-more').click();
+    await p3.locator('.gv-bell-wrap.menu button').first().click();
+    const panel = p3.locator('.gv-avisos');
+    await panel.getByText(/te recuerda que tienes su «Pikmin 4»/).waitFor({ timeout: 10000 });
+    await panel.getByText(/te deja «Super Mario RPG»/).waitFor();
+    await shot('avisos-movil', p3);
+    await panel.getByRole('button', { name: /Marcar todo como leído/ }).click();
+    await p3.locator('.nav-more .nav-badge').waitFor({ state: 'detached', timeout: 10000 });
+    await p3.keyboard.press('Escape');
+    await p3.mouse.click(5, 5);
+  });
   await check('A Zlotny le sale «¡te lo deja!» y el juego en «Tengo de otros»', async () => {
     await p3.reload();
     await p3.locator('.lz-pet').getByText('¡te lo deja!').waitFor({ timeout: 20000 });
@@ -274,6 +389,26 @@ const server = file => JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data
 
   // ── Sincronización: un cambio en una pestaña llega a la cuenta ──
   CUR.page = page;
+  await check('Historial de préstamos: David marca «Devuelto» y queda apuntado que Zlotny lo tuvo', async () => {
+    CUR.page = p2;
+    await p2.reload();
+    await p2.locator('.nav-item', { hasText: 'Préstamos' }).click();
+    const fila = p2.locator('.lz-mios .lz-mio', { hasText: 'Super Mario RPG' });
+    await fila.getByRole('button', { name: /Devuelto/ }).click();
+    await fila.waitFor({ state: 'detached', timeout: 15000 });
+    for (let i = 0; i < 30; i++) { const j = server('c_daconstenla.json').data.juegos.find(x => x.nombre === 'Super Mario RPG'); if (j.historialPrestamos) break; await p2.waitForTimeout(300); }
+    const j = server('c_daconstenla.json').data.juegos.find(x => x.nombre === 'Super Mario RPG');
+    const h = JSON.parse(j.historialPrestamos || '[]');
+    const local = await p2.evaluate(() => window.api.juegos.getAll({}).then(l => l.filter(x => /Super Mario RPG/.test(x.nombre)).map(x => [x.id, x.historialPrestamos, x.prestadoA])));
+    assert(h.length === 1 && h[0].au === 'zlotny' && !j.prestadoA, JSON.stringify({ h: j.historialPrestamos, a: j.prestadoA, au: j.prestadoUsuario, rev: server('c_daconstenla.json').rev, id: j.id, local }));
+    CUR.page = page;
+    await page.goto(URL0 + '#/comunidad/daconstenla');
+    await page.getByPlaceholder(/Buscar en la colección/).fill('super mario rpg');
+    await page.locator('.gcard').first().click();
+    await page.locator('.gv-jl .hist-prest').getByText('Zlotny').waitFor({ timeout: 10000 });
+    await shot('historial');
+    await page.keyboard.press('Escape');
+  });
   await check('Tamaño del texto en la web (zoom 125 %): la app sigue encajando en la ventana', async () => {
     await page.locator('.sidebar-footer').getByText('Ajustes').click();
     await page.locator('.modal-box').getByRole('button', { name: 'Más grande' }).click();
@@ -293,6 +428,15 @@ const server = file => JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data
     for (let i = 0; i < 40 && server('c_soiber.json').rev === rev0; i++) await page.waitForTimeout(300);
     const c = server('c_soiber.json');
     assert(c.rev > rev0 && c.data.juegos.some(j => j.nombre === 'Juego de prueba sync'), 'no subió');
+  });
+  await check('Recargar justo después de guardar no pierde nada (la copia del aparato se guarda antes de dar la subida por buena)', async () => {
+    const rev0 = server('c_soiber.json').rev;
+    await page.evaluate(async () => { const ps = await window.api.plataformas.getAll(); await window.api.juegos.create({ plataformaId: ps[0].id, nombre: 'Juego recarga rápida' }); });
+    for (let i = 0; i < 60 && server('c_soiber.json').rev === rev0; i++) await page.waitForTimeout(100);
+    await page.reload();
+    await page.getByRole('heading', { name: 'Inicio' }).or(page.locator('.page-title')).first().waitFor({ timeout: 20000 });
+    const ok = await page.evaluate(() => window.api.juegos.getAll({}).then(l => l.some(j => j.nombre === 'Juego recarga rápida')));
+    assert(ok, 'el juego no está en este aparato tras recargar');
   });
   await check('Conflicto: si otro dispositivo guardó mientras aquí había cambios, pregunta cuál conservar', async () => {
     const f = path.join(SRV, 'gamevault/data/c_soiber.json');

@@ -64,6 +64,8 @@ const MIGRATIONS = {
     ['ventasTotal', 'REAL'], ['ventasJson', 'TEXT'], ['ventasFetched', 'TEXT'],
     ['tituloOriginal', 'TEXT'], ['tituloIngles', 'TEXT'], ['hltbName', 'TEXT'],
     ['prestadoUsuario', 'TEXT'],
+    ['historialPrestamos', 'TEXT'],   // JSON: [{ a, au, desde, hasta }] — préstamos ya devueltos
+    ['sinFinal', 'INTEGER'],          // 1 = no se «termina» (Mario Kart, Smash…): no cuenta para la pila
   ],
   deseos: [],
   accesorios: [],
@@ -143,6 +145,14 @@ function createCore({ SQL, bytes, persist = () => {}, http = null, onChange = ()
   db.run('DELETE FROM juegos WHERE plataformaId NOT IN (SELECT id FROM plataformas)');
   db.run('PRAGMA foreign_keys = ON');
   save();
+
+  // Historial de préstamos: al devolver (o cambiar de persona) se guarda quién lo tuvo y cuánto
+  function alHistorial(id, p) {
+    const row = one('SELECT historialPrestamos h FROM juegos WHERE id=?', [id]);
+    let h = []; try { h = JSON.parse(row?.h || '[]') || []; } catch {}
+    h.push({ a: p.prestadoA, au: p.prestadoUsuario || null, desde: p.fechaPrestamo || null, hasta: new Date().toISOString().slice(0, 10) });
+    run('UPDATE juegos SET historialPrestamos=? WHERE id=?', [JSON.stringify(h.slice(-50)), id]);
+  }
 
   // ── Importar / exportar colección ────────────────────────────────────────
   function importColeccion(data, { replace = false, todo = false } = {}) {
@@ -379,12 +389,21 @@ function createCore({ SQL, bytes, persist = () => {}, http = null, onChange = ()
     'j:prestados': () => all(`SELECT j.*,p.nombre plataformaNombre FROM juegos j LEFT JOIN plataformas p ON j.plataformaId=p.id
       WHERE j.prestadoA IS NOT NULL AND j.prestadoA != '' ORDER BY j.fechaPrestamo DESC`),
     'j:prestar': ({ id, prestadoA, fechaPrestamo, prestadoUsuario }) => {
+      // si ya estaba prestado a otra persona, ese préstamo pasa al historial
+      const antes = one('SELECT prestadoA,prestadoUsuario,fechaPrestamo FROM juegos WHERE id=?', [id]);
+      if (antes && antes.prestadoA && (antes.prestadoA !== clean('prestadoA', prestadoA) || (antes.prestadoUsuario || null) !== (clean('prestadoUsuario', prestadoUsuario) || null))) alHistorial(id, antes);
       run(`UPDATE juegos SET prestadoA=?,fechaPrestamo=?,prestadoUsuario=?,updatedAt=datetime('now') WHERE id=?`,
         [clean('prestadoA', prestadoA), clean('fechaPrestamo', fechaPrestamo), clean('prestadoUsuario', prestadoUsuario), id]);
       return one('SELECT * FROM juegos WHERE id=?', [id]);
     },
     'j:devolver': id => {
+      const antes = one('SELECT prestadoA,prestadoUsuario,fechaPrestamo FROM juegos WHERE id=?', [id]);
+      if (antes && antes.prestadoA) alHistorial(id, antes);
       run(`UPDATE juegos SET prestadoA=NULL,fechaPrestamo=NULL,prestadoUsuario=NULL,updatedAt=datetime('now') WHERE id=?`, [id]);
+      return one('SELECT * FROM juegos WHERE id=?', [id]);
+    },
+    'j:sinFinal': ({ id, valor }) => {
+      run(`UPDATE juegos SET sinFinal=?,updatedAt=datetime('now') WHERE id=?`, [valor ? 1 : null, id]);
       return one('SELECT * FROM juegos WHERE id=?', [id]);
     },
     // keepOnMiss: si no se encuentra, conservar los tiempos que hubiera (importación masiva)

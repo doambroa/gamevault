@@ -87,6 +87,61 @@ function reqTx(callable $fn) {
   ftruncate($h, 0); rewind($h); fwrite($h, json_encode($l, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
   fflush($h); flock($h, LOCK_UN); fclose($h);
 }
+// Fichero JSON con bloqueo (lectura-modificación-escritura sin pisarse)
+function jsonTx($f, callable $fn) {
+  ensureDirs();
+  $h = fopen($f, 'c+'); if (!$h) out(['error' => 'No se pudo escribir en data/'], 500);
+  flock($h, LOCK_EX);
+  $d = json_decode(stream_get_contents($h) ?: '{}', true); if (!is_array($d)) $d = [];
+  $r = $fn($d);
+  ftruncate($h, 0); rewind($h); fwrite($h, json_encode($d, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+  fflush($h); flock($h, LOCK_UN); fclose($h);
+  return $r;
+}
+// Avisos para una persona (petición recibida, respuesta, recordatorio…). Se guardan los 60 últimos.
+function notify($to, $tipo, $de, $texto, $extra = []) {
+  global $DIR;
+  if (!$to || $to === $de) return;
+  jsonTx("$DIR/notifs.json", function (&$d) use ($to, $tipo, $de, $texto, $extra) {
+    $l = $d[$to] ?? [];
+    $l[] = ['id' => bin2hex(random_bytes(5)), 'tipo' => $tipo, 'de' => $de, 'texto' => $texto, 'fecha' => date('c'), 'leida' => false] + $extra;
+    $d[$to] = array_slice($l, -60);
+  });
+}
+// Copia de seguridad semanal de todas las colecciones (data/backups), se hace sola con el primer acceso
+// de la semana. Un único fichero comprimido por copia; se guardan las 8 últimas.
+function backupDir() { global $DIR; return "$DIR/backups"; }
+function makeBackup($motivo = 'semanal') {
+  global $DIR;
+  $bd = backupDir(); if (!is_dir($bd)) @mkdir($bd, 0775, true);
+  $pack = ['gamevault' => 'copia', 'fecha' => date('c'), 'motivo' => $motivo, 'ficheros' => []];
+  foreach (glob("$DIR/*.json") ?: [] as $f) {
+    $n = basename($f);
+    if ($n === 'tokens.json') continue;                     // las sesiones de los aparatos no se copian
+    $pack['ficheros'][$n] = json_decode(file_get_contents($f), true);
+  }
+  $json = json_encode($pack, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+  $gz = function_exists('gzencode');
+  $name = 'gamevault-' . date('Y-m-d-His') . ($gz ? '.json.gz' : '.json');
+  if (@file_put_contents("$bd/$name", $gz ? gzencode($json, 6) : $json) === false) return null;
+  @file_put_contents("$bd/ultima.txt", (string)time());
+  $all = listBackups();
+  foreach (array_slice($all, 8) as $old) @unlink("$bd/" . $old['nombre']);
+  return $name;
+}
+function listBackups() {
+  $res = [];
+  foreach (glob(backupDir() . '/gamevault-*.json*') ?: [] as $f) $res[] = ['nombre' => basename($f), 'fecha' => date('c', filemtime($f)), 'bytes' => filesize($f)];
+  usort($res, function ($a, $b) { return strcmp($b['nombre'], $a['nombre']); });
+  return $res;
+}
+function weeklyBackup() {
+  $u = backupDir() . '/ultima.txt';
+  $t = is_file($u) ? (int)@file_get_contents($u) : 0;
+  if (time() - $t < 7 * 86400) return;
+  @file_put_contents($u, (string)time());                   // primero la marca: así dos peticiones a la vez no copian dos veces
+  makeBackup('semanal');
+}
 function pendings() { global $DIR; return readJson("$DIR/pending.json", []); }
 function isPendingId($u) { return is_string($u) && preg_match('/^~[a-z0-9-]{2,40}$/', $u) && isset(pendings()[$u]); }
 function isAdmin($u) { global $cfg; return $u && in_array($u, (array)($cfg['admins'] ?? ['soiber']), true); }
@@ -244,6 +299,7 @@ switch ($action) {
 
   case 'me':
     if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
+    if (is_dir($DIR)) { try { weeklyBackup(); } catch (Throwable $e) {} }
     if (!$ME) out(['user' => null, 'creditos' => $SHARED, 'needsInvite' => $INVITE !== '']);
     out(meInfo($ME));
 
@@ -432,6 +488,8 @@ switch ($action) {
         'msg' => mb_substr(trim((string)($b['msg'] ?? '')), 0, 300), 'created' => date('c'), 'estado' => 'pendiente'];
       $l[] = $res;
     });
+    $disp = users()[$u]['display'] ?? $u;
+    if (($res['created'] ?? '') >= date('c', time() - 5)) notify($to, 'peticion', $u, "$disp te pide «{$res['nombre']}»" . ($res['msg'] ? ": «{$res['msg']}»" : ''), ['juegoId' => $jid, 'nombre' => $res['nombre']]);
     out($res);
 
   case 'req_answer': // POST {id, accept} — solo el dueño del juego
@@ -447,7 +505,66 @@ switch ($action) {
       $err = 'Esa petición ya no existe';
     });
     if ($err) out(['error' => $err], 404);
+    if ($action === 'req_answer') {
+      $disp = users()[$u]['display'] ?? $u;
+      notify($res['from'], $res['estado'] === 'aceptada' ? 'aceptada' : 'rechazada', $u,
+        $res['estado'] === 'aceptada' ? "¡$disp te deja «{$res['nombre']}»!" : "$disp ahora no puede dejarte «{$res['nombre']}»", ['juegoId' => $res['juegoId'], 'nombre' => $res['nombre']]);
+    }
     out($res);
+
+  /* ---------- avisos ---------- */
+  case 'notifs':    // GET → { avisos: [...], sinLeer: n }
+    $u = requireUser(); $all = users(); $prof = profiles();
+    $l = array_reverse(readJson("$DIR/notifs.json", [])[$u] ?? []);
+    foreach ($l as $k => $n) $l[$k]['quien'] = isset($all[$n['de']]) ? publicUser($n['de'], $all[$n['de']], $prof) : ['user' => $n['de'], 'display' => $n['de']];
+    out(['avisos' => $l, 'sinLeer' => count(array_filter($l, function ($n) { return empty($n['leida']); }))]);
+
+  case 'notifs_read': // POST {ids?} — sin ids, todas
+    $u = requireUser(); $b = body(); $ids = isset($b['ids']) ? (array)$b['ids'] : null;
+    jsonTx("$DIR/notifs.json", function (&$d) use ($u, $ids) {
+      foreach (($d[$u] ?? []) as $k => $n) if ($ids === null || in_array($n['id'], $ids, true)) $d[$u][$k]['leida'] = true;
+    });
+    out(['ok' => true]);
+
+  case 'remind':    // POST {to, id, msg}: el dueño recuerda a quien tiene su juego que se lo devuelva
+    $u = requireUser(); $b = body();
+    $to = strtolower((string)($b['to'] ?? '')); $jid = (int)($b['id'] ?? 0);
+    $j = null; foreach ((readJson(collFile($u), null)['data']['juegos'] ?? []) as $x) if ((int)($x['id'] ?? 0) === $jid) $j = $x;
+    if (!$j || ($j['prestadoUsuario'] ?? null) !== $to) out(['error' => 'Ese juego no lo tiene esa persona (¿está sincronizado?)'], 400);
+    $clave = "$u|$jid"; $ya = false;
+    jsonTx("$DIR/reminders.json", function (&$d) use ($clave, &$ya) {
+      if (($d[$clave] ?? 0) > time() - 3 * 86400) { $ya = true; return; }
+      $d[$clave] = time();
+    });
+    if ($ya) out(['error' => 'Ya se lo recordaste hace menos de 3 días'], 429);
+    $disp = users()[$u]['display'] ?? $u;
+    $desde = !empty($j['fechaPrestamo']) ? ' (desde el ' . implode('/', array_reverse(explode('-', $j['fechaPrestamo']))) . ')' : '';
+    $msg = mb_substr(trim((string)($b['msg'] ?? '')), 0, 300);
+    notify($to, 'recordatorio', $u, "$disp te recuerda que tienes su «{$j['nombre']}»$desde" . ($msg ? ": «{$msg}»" : ''), ['juegoId' => $jid, 'nombre' => $j['nombre']]);
+    out(['ok' => true]);
+
+  /* ---------- copias de seguridad (administradores) ---------- */
+  case 'backups':
+    $u = requireUser(); if (!isAdmin($u)) out(['error' => 'Solo para administradores'], 403);
+    $f = backupDir() . '/ultima.txt';
+    out(['copias' => listBackups(), 'ultima' => is_file($f) ? date('c', (int)file_get_contents($f)) : null, 'carpeta' => str_replace('\\', '/', realpath(backupDir()) ?: backupDir())]);
+
+  case 'backup_now':
+    $u = requireUser(); if (!isAdmin($u)) out(['error' => 'Solo para administradores'], 403);
+    $n = makeBackup('a mano');
+    if (!$n) out(['error' => 'No se pudo escribir la copia en data/backups'], 500);
+    out(['ok' => true, 'nombre' => $n, 'copias' => listBackups()]);
+
+  case 'backup_get':  // descarga de una copia (administradores)
+    $u = requireUser(); if (!isAdmin($u)) out(['error' => 'Solo para administradores'], 403);
+    $n = basename((string)($_GET['n'] ?? ''));
+    $f = backupDir() . '/' . $n;
+    if (!preg_match('/^gamevault-[\d-]+\.json(\.gz)?$/', $n) || !is_file($f)) out(['error' => 'No existe esa copia'], 404);
+    header_remove('Content-Type');
+    header('Content-Type: application/octet-stream');
+    header('Content-Disposition: attachment; filename="' . $n . '"');
+    header('Content-Length: ' . filesize($f));
+    readfile($f); exit;
 
   case 'pending':   // administradores: perfiles por reclamar con su enlace para mandárselo a cada uno
     $u = requireUser();
@@ -495,6 +612,7 @@ switch ($action) {
     unset($all[$id]); writeJson("$DIR/pending.json", $all);
     // las peticiones que le hicieron mientras no tenía cuenta pasan a su cuenta
     if (is_file("$DIR/requests.json")) reqTx(function (&$l) use ($id, $u) { foreach ($l as $k => $r) { if ($r['to'] === $id) $l[$k]['to'] = $u; } });
+    if (is_file("$DIR/notifs.json")) jsonTx("$DIR/notifs.json", function (&$d) use ($id, $u) { if (!empty($d[$id])) { $d[$u] = array_slice(array_merge($d[$u] ?? [], $d[$id]), -60); unset($d[$id]); } });
     @rename(collFile($id), collFile($id) . '.reclamado-por-' . $u);
     out(['ok' => true, 'rev' => $rev] + counts(['data' => $merged]));
 

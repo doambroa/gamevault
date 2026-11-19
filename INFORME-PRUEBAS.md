@@ -1,5 +1,15 @@
 # GameVault — Informe de pruebas y errores corregidos
 
+## Versión 2.2 (19-11-2026)
+
+Unitarias 46/46 · escritorio 41/41 · comunidad 36/36 (dos pasadas) · Android 16/16 · iPhone 9/9 · accesorios 8/8. Todas las pruebas de versiones anteriores siguen pasando. Probado además en el servidor real: la copia semanal se crea, contiene las colecciones y no se puede descargar desde fuera (403).
+
+Probado: pila (reto mensual, más olvidados, «No tiene final»), recordatorio con límite de 3 días, recordatorio a alguien sin cuenta, deseos cruzados, juegos en común, historial al prestar/devolver/cambiar de persona, avisos al pedir/aceptar/rechazar y al reclamar un perfil, copia del servidor (crear, listar, descargar y abrir el .gz), copia semanal de Windows.
+
+1. **Error encontrado y corregido**: en la web, si recargabas la página justo después de guardar, podía abrirse la copia local anterior (los datos ya estaban en el servidor, pero no en el navegador). Ahora se guarda en el navegador antes de dar la subida por terminada; hay una prueba para que no vuelva.
+2. Texto «fuera desde hace hoy» → «desde hoy».
+3. El instalador de Windows se genera ahora sin wine (que dejó de funcionar en el equipo de compilación): icono y versión se ponen con `resedit` y el desinstalador se extrae sin ejecutar nada (`npm run pack-win-sinwine`). Comprobado que el .exe lleva icono, versión 2.2.0 y la app nueva.
+
 ## Versión 2.1.2 (17-11-2026)
 
 Unitarias 45/45 · escritorio 38/38 · comunidad 26/26 · Android 16/16 · iPhone 9/9 · accesorios 8/8. Probado además contra el servidor real (proxy de ventas y HowLongToBeat).

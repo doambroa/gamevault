@@ -115,6 +115,20 @@ async function initDb() {
   });
   // BD nueva → catálogo vacío: el usuario empieza desde cero (asistente inicial)
   console.log('BD lista:', file);
+  try { copiaSemanal(file); } catch (e) { log('copia semanal: ' + e.message); }
+}
+// Copia de seguridad semanal de la colección en este PC (carpeta «copias» junto a la BD; las 8 últimas)
+function copiaSemanal(file) {
+  if (!fs.existsSync(file) || fs.statSync(file).size < 1024) return;     // aún vacía: nada que guardar
+  const dir = path.join(path.dirname(file), 'copias');
+  fs.mkdirSync(dir, { recursive: true });
+  const copias = fs.readdirSync(dir).filter(f => /^gamevault-\d{4}-\d{2}-\d{2}\.db$/.test(f)).sort();
+  const ultima = copias.length ? fs.statSync(path.join(dir, copias[copias.length - 1])).mtimeMs : 0;
+  if (Date.now() - ultima < 7 * 86400000) return;
+  const nombre = 'gamevault-' + new Date().toISOString().slice(0, 10) + '.db';
+  fs.copyFileSync(file, path.join(dir, nombre));
+  for (const f of copias.concat(nombre).sort().slice(0, -8)) { try { fs.unlinkSync(path.join(dir, f)); } catch {} }
+  console.log('Copia semanal:', nombre);
 }
 const all = (sql, p) => core.all(sql, p);
 

@@ -34,6 +34,16 @@ Las bases de datos de versiones anteriores se actualizan solas al abrir la 1.8 (
 
 ---
 
+## Novedades de la 2.2
+
+- **La pila de la vergüenza** (menú «La pila»): los juegos que tienes y aún no te has pasado, cuántas horas suman y cuánto tardarías a 2 h al día. Cada mes propone un **reto** con dos de los más cortos, enseña los más olvidados y los agrupa por duración. Los que no tienen final (Mario Kart, FIFA…) se marcan con «No tiene final» en la ficha del juego y salen de la pila.
+- **Avisos** (campana junto a tu cuenta): te piden un juego, te contestan a una petición o te recuerdan una devolución. Si quieres, también como notificación del sistema mientras GameVault está abierto o en segundo plano.
+- **Recordatorios de préstamo**: en Préstamos se ve cuánto tiempo lleva fuera cada juego (ámbar al mes, rojo a los 3 meses) y el botón «Recordar» (como mucho uno cada 3 días). Si se lo dejaste a alguien sin cuenta, te prepara un mensaje para enviarle.
+- **Historial de préstamos** de cada juego (a quién se lo dejaste y cuánto tiempo).
+- **Lista de deseos cruzada**: si alguien de la comunidad tiene un juego de tu lista de deseos, sale en Préstamos y en tu lista, con «Pedir».
+- **Juegos en común** en el perfil de cada persona: los que tenéis los dos, los que solo tiene él/ella y los que solo tienes tú.
+- **Copia de seguridad semanal**: el servidor guarda cada semana una copia de todas las colecciones en `data/backups` (las 8 últimas; el administrador puede hacer una al momento y descargarla desde Comunidad). La versión de Windows guarda también una copia semanal de tu base de datos en la carpeta `copias` de tus datos.
+
 ## Novedades de la 2.1.1
 
 - Línea temporal mucho más ligera y despejada (miniaturas, 3 carátulas por año y «+N» para ver el año entero; los años vacíos se juntan).

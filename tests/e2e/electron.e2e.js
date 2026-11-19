@@ -488,6 +488,12 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
     await p2.locator('td.td-name', { hasText: 'Mario Kart 8 Deluxe: Booster Course' }).waitFor();
     await app2.close();
   });
+  await check('Copia de seguridad semanal en este PC: al abrir con colección se guarda en «copias»', async () => {
+    const dir = path.join(DATA, 'copias');
+    const f = fs.existsSync(dir) ? fs.readdirSync(dir).filter(x => /^gamevault-\d{4}-\d{2}-\d{2}\.db$/.test(x)) : [];
+    assert(f.length === 1, 'copias: ' + f.join(','));
+    assert(fs.statSync(path.join(dir, f[0])).size > 4096, 'copia vacía');
+  });
   // Sesión nueva para tema y borrado (al final: el borrado vacía la colección)
   const app3 = await electron.launch({
     executablePath: path.join(APP, 'node_modules/electron/dist/electron'), args: [APP, '--no-sandbox'],
@@ -497,6 +503,34 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   await page.setViewportSize({ width: 1440, height: 900 }).catch(() => {});
   await page.getByRole('heading', { name: 'Inicio' }).waitFor({ timeout: 20000 });
+  await check('La pila de la vergüenza (sin cuenta): aviso de Créditos Finales, horas y grupos por duración', async () => {
+    await page.getByRole('button', { name: 'La pila' }).click();
+    await page.locator('.pila-aviso').getByText(/Créditos Finales/).waitFor();
+    await page.locator('.pila-hero-n').first().waitFor();
+    assert(await page.locator('.pila-sec').count() >= 1, 'sin grupos');
+    await shot('pila');
+  });
+  await check('Historial de préstamos y «No tiene final» en la ficha del juego', async () => {
+    const id = await page.evaluate(async () => {
+      const j = (await window.api.juegos.getAll({})).find(x => /Booster Course/.test(x.nombre));
+      await window.api.juegos.prestar({ id: j.id, prestadoA: 'Ana', fechaPrestamo: '2026-09-01' });
+      await window.api.juegos.devolver(j.id);
+      return j.id;
+    });
+    await page.getByRole('button', { name: 'Inicio', exact: true }).click();
+    await page.getByRole('button', { name: 'La pila' }).click();
+    await page.locator('.pila-hero-n').first().waitFor();
+    const n0 = Number((await page.locator('.pila-hero-n').first().locator('b').innerText()).replace(/\D/g, ''));
+    await page.locator('.gcard', { hasText: 'Booster Course' }).first().click();
+    const panel = page.locator('.jp-panel');
+    await panel.locator('.hist-prest').getByText('Ana').waitFor({ timeout: 10000 });
+    await panel.locator('.hist-prest').getByText(/01\/09\/2026/).waitFor();
+    await shot('historial');
+    await panel.locator('.jp-sinfinal input').check();
+    await panel.locator('.jp-close').click();
+    await page.waitForFunction(n => Number(document.querySelector('.pila-hero-n b').textContent.replace(/\D/g, '')) === n - 1, n0);
+    assert(await page.evaluate(i => window.api.juegos.getAll({}).then(l => l.find(x => x.id === i).sinFinal), id) === 1, 'no se guardó');    await page.getByRole('button', { name: 'Inicio', exact: true }).click();
+  });
   await check('Tamaño del texto: Automático según la pantalla y fijo desde Ajustes (sin barras de desplazamiento raras)', async () => {
     await page.locator('.sidebar-footer').getByText('Ajustes').click();
     const modal = page.locator('.modal-box');

@@ -252,6 +252,12 @@ export default function SettingsModal({ open, onClose, onWipe }) {
         </Btn>
       </div>
       <TamanoTexto/>
+      {window.api?.platform === 'electron' && (
+        <p style={{fontSize:12.5,color:'var(--text-2)',marginTop:18,lineHeight:1.5}}>
+          Copia de seguridad: cada semana se guarda sola una copia de tu colección en la carpeta <b>copias</b>, dentro de la carpeta de datos
+          {' '}(<button className="gv-link" onClick={() => window.api.io.openFolder()}>abrirla</button>). Se conservan las 8 últimas.
+        </p>
+      )}
       {onWipe && (
         <div className="danger-zone">
           <div>

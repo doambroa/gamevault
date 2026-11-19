@@ -16,6 +16,7 @@ import './pages/Stats/Stats.css';
 import ComunidadPage, { PerfilPage } from './community/ComunidadPage';
 import PrestamosPage    from './community/PrestamosPage';
 import ReclamarPage     from './community/ReclamarPage';
+import PilaPage         from './pages/Pila/PilaPage';
 import { initAccount, useAccount, IS_APP } from './community/account';
 import { LoginScreen, ConflictModal, RemoteToast, ClaimBanner, AccountModal } from './community/ui';
 
@@ -102,6 +103,7 @@ export default function App() {
               <Route path="/juegos"          element={<JuegosPage/>}/>
               <Route path="/deseos"          element={<DeseosPage/>}/>
               <Route path="/stats"           element={<StatsPage/>}/>
+              <Route path="/pila"            element={<PilaPage/>}/>
               <Route path="/comunidad"       element={<ComunidadPage/>}/>
               <Route path="/comunidad/:user" element={<PerfilPage/>}/>
               <Route path="/prestamos"       element={<PrestamosPage/>}/>

@@ -1,6 +1,6 @@
 {
   "name": "gamevault",
-  "version": "2.1.2",
+  "version": "2.2.0",
   "description": "GameVault — colección de videojuegos y consolas",
   "author": {
     "name": "Daniel"
@@ -14,7 +14,8 @@
     "electron-prod": "npm run build && electron .",
     "pack-win": "npm run build && electron-builder --win --x64 --publish never",
     "pack-android": "npm run build && node android/build-apk.js",
-    "pack-web": "npm run build && node scripts/build-web.js"
+    "pack-web": "npm run build && node scripts/build-web.js",
+    "pack-win-sinwine": "npm run build && node scripts/pack-win-nowine.js"
   },
   "dependencies": {
     "sql.js": "^1.12.0"
@@ -31,7 +32,8 @@
     "react-router-dom": "^6.22.0",
     "react-scripts": "5.0.1",
     "wait-on": "^7.2.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "resedit": "^1.7.2"
   },
   "build": {
     "appId": "com.gamevault.app",

@@ -4,6 +4,10 @@ import { Btn, Badge, PageHeader, EmptyState, ConfirmModal, Modal, Input, Select,
 import { autofillJuego } from '../../utils/rawg';
 import { useSort, SortTh } from '../../utils/useSort';
 import { parseImgs, thumb } from '../../utils/imgSrc';
+import { useNavigate } from 'react-router-dom';
+import { useAccount, fetchLoans } from '../../community/account';
+import { claveJuego, mismaConsola } from '../../community/claves';
+import { Avatar } from '../../community/ui';
 
 const api = window.api;
 const GENEROS = ['Acción','Aventura','RPG','Deportes','Carreras','Plataformas','Shooter','Estrategia','Simulación','Lucha','Puzzle','Terror','MMORPG','Indie','Música','Otro'];
@@ -34,6 +38,25 @@ export default function DeseosPage() {
   });
   const hasFilters = filtGenero || filtPlat;
   const clearFilters = () => { setFiltGenero(''); setFiltPlat(''); };
+  // Quién de la comunidad tiene ya cada juego de la lista (para pedírselo en la Zona de préstamos)
+  const { me } = useAccount();
+  const navTo = useNavigate();
+  const [loTienen, setLoTienen] = useState({});
+  useEffect(() => {
+    if (!me || !items.length) { setLoTienen({}); return; }
+    let vivo = true;
+    fetchLoans().then(gente => {
+      const m = {};
+      for (const d of items) {
+        const k = claveJuego(d.nombre);
+        const q = [];
+        for (const g of gente) if (g.user !== me.user && g.juegos.some(j => claveJuego(j.n) === k && mismaConsola(d.plataforma, j.p))) q.push(g);
+        if (q.length) m[d.id] = q;
+      }
+      if (vivo) setLoTienen(m);
+    }).catch(() => {});
+    return () => { vivo = false; };
+  }, [me, items]);
 
   const load=useCallback(async()=>{
     setLoading(true);
@@ -90,7 +113,14 @@ export default function DeseosPage() {
                         ?<img src={thumb(imgs[0], 200)} alt="" style={{width:52,height:38,objectFit:'cover',borderRadius:4,border:'1px solid var(--border)'}}/>
                         :<div style={{width:52,height:38,background:'var(--bg-3)',borderRadius:4,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--text-3)'}}><Heart size={12}/></div>}
                     </td>
-                    <td className="td-name">{d.nombre}</td>
+                    <td className="td-name">{d.nombre}
+                      {loTienen[d.id] && (
+                        <button className="deseo-lotienen" onClick={() => navTo('/prestamos')} title="Ir a la Zona de préstamos para pedírselo">
+                          {loTienen[d.id].slice(0, 4).map(g => <Avatar key={g.user} user={g} size={18}/>)}
+                          <span>Lo tiene{loTienen[d.id].length > 1 ? 'n' : ''} {loTienen[d.id].map(g => g.display).join(', ')} · pedir</span>
+                        </button>
+                      )}
+                    </td>
                     {/* Plataforma clickable */}
                     <td className="td-clickable" onClick={()=>d.plataforma&&setFiltPlat(d.plataforma)} title={d.plataforma?'Filtrar por plataforma':''}>
                       {d.plataforma||'—'}

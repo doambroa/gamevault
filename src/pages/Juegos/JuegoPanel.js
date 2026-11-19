@@ -1,3 +1,4 @@
+import HistorialPrestamos from '../../components/HistorialPrestamos';
 import React, { useState, useEffect, useRef } from 'react';
 import { imgSrc, parseImgs, thumb } from '../../utils/imgSrc';
 import { X, Edit2, Monitor, Calendar, Euro, Users, Globe, Tag, Info, ChevronLeft, ChevronRight, BookOpen, RefreshCw, Copy } from 'lucide-react';
@@ -297,6 +298,11 @@ export default function JuegoPanel({ juego, plataforma, open, onClose, onEdit, o
               ? <button className="jp-action-btn" onClick={async () => { await api.juegos.devolver(juego.id); onRefresh?.(); }}>Me lo han devuelto</button>
               : <button className="jp-action-btn" onClick={() => setPrestar(true)}>Prestar…</button>}
           </div>
+          <HistorialPrestamos raw={juego.historialPrestamos}/>
+          <label className="jp-sinfinal" title="Juegos sin historia que acabar (Mario Kart, Smash, party…): no cuentan para la pila de la vergüenza">
+            <input type="checkbox" checked={!!juego.sinFinal} onChange={async e => { await api.juegos.sinFinal({ id: juego.id, valor: e.target.checked }); onRefresh?.(); }}/>
+            No tiene final <small>(no cuenta para la pila de la vergüenza)</small>
+          </label>
 
           {/* Comments */}
           {juego.comentarios && (

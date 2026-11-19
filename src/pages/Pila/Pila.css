@@ -1,0 +1,24 @@
+.pila-aviso{background:rgba(250,204,21,.1);border:1px solid rgba(250,204,21,.4);border-radius:var(--r-lg);padding:10px 14px;font-size:13px;color:var(--text-1);margin-bottom:16px}
+.pila-hero{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-bottom:18px}
+.pila-hero-n{display:flex;flex-direction:column;gap:2px;padding:16px 18px;border-radius:var(--r-lg);background:var(--bg-2);border:1px solid var(--border);color:var(--text-2);font-size:13px;position:relative}
+.pila-hero-n svg{color:var(--accent);margin-bottom:6px}
+.pila-hero-n b{font-family:var(--font-d);font-size:32px;font-weight:700;color:var(--text-0);line-height:1.05}
+.pila-hero-n.pct svg{color:var(--green)}
+.pila-bar{display:block;height:6px;border-radius:99px;background:var(--bg-4);margin-top:8px;overflow:hidden}
+.pila-bar>i{display:block;height:100%;background:var(--green);border-radius:99px}
+.pila-reto{border:1px solid var(--gold);background:linear-gradient(135deg,rgba(250,204,21,.1),transparent 60%),var(--bg-2);border-radius:var(--r-lg);padding:14px 16px;margin-bottom:20px}
+.pila-reto.hecho{border-color:var(--green);background:linear-gradient(135deg,rgba(46,204,113,.12),transparent 60%),var(--bg-2)}
+.pila-reto-h{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.pila-reto-h>svg{color:var(--gold);flex-shrink:0}
+.pila-reto.hecho .pila-reto-h>svg{color:var(--green)}
+.pila-reto-h>div{flex:1;min-width:0}
+.pila-reto-h b{display:block;font-size:16px;color:var(--text-0)}
+.pila-reto-h small{font-size:12.5px;color:var(--text-2)}
+.pila-reto-js{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,240px));gap:14px}
+.pila-reto-j{position:relative}
+.pila-reto-j.ok .gcard{opacity:.75}
+.pila-reto-ok{position:absolute;top:10px;left:10px;background:var(--green);color:#fff;font-weight:700;font-size:12px;border-radius:99px;padding:3px 10px;display:flex;align-items:center;gap:4px;box-shadow:0 2px 8px rgba(0,0,0,.35)}
+.pila-chips{margin-bottom:14px}
+.pila-sec{margin-bottom:18px}
+.pila-sec .grp-head svg:not(.grp-chev){color:var(--text-2)}
+.pila-pie{margin-top:10px}

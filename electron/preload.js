@@ -29,6 +29,7 @@ contextBridge.exposeInMainWorld('api', {
     prestados:       ()   => ipcRenderer.invoke('j:prestados'),
     prestar:         (d)  => ipcRenderer.invoke('j:prestar', d),
     devolver:        (id) => ipcRenderer.invoke('j:devolver', id),
+    sinFinal:        (d)  => ipcRenderer.invoke('j:sinFinal', d),
     hltbFetch:       (d)  => ipcRenderer.invoke('j:hltbFetch', d),
     ventasFetch:     (d)  => ipcRenderer.invoke('j:ventasFetch', d),
   },

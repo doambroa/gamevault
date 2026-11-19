@@ -1,12 +1,14 @@
+import HistorialPrestamos from '../components/HistorialPrestamos';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useCollapse, GroupHead, CollapseAll } from '../utils/useCollapse';
+import { claveJuego, claveConsola } from './claves';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Users, Search, Gamepad2, Monitor, Trophy, ArrowLeft, Heart, Lock, BookOpen, Check, X, ArrowLeftRight, Copy, Link2, Hand } from 'lucide-react';
+import { Users, Search, Gamepad2, Monitor, Trophy, ArrowLeft, Heart, Lock, BookOpen, Check, X, ArrowLeftRight, Copy, Link2, Hand, Archive, Download } from 'lucide-react';
 import { PageHeader, EmptyState, Btn, SkeletonList } from '../components/ui/index';
 import GameCard from '../components/GameCard';
 import { firstImg, parseImgs, thumb } from '../utils/imgSrc';
 import { fmtHours } from '../utils/hltb';
-import { useAccount, fetchUsers, fetchView, fetchPending, pedirJuego } from './account';
+import { useAccount, fetchUsers, fetchView, fetchPending, pedirJuego, fetchBackups, backupNow, descargarBackup } from './account';
 import { Avatar, LoginForm } from './ui';
 import { indexCreditos, findCredito, estrellas, ESTADO_CF } from './creditos';
 import { normalize } from '../core/text';
@@ -81,6 +83,36 @@ export default function ComunidadPage() {
         </div>
       )}
       {me.admin && <PendientesAdmin/>}
+      {me.admin && <CopiasAdmin/>}
+    </div>
+  );
+}
+
+// Administración: copias de seguridad del servidor (cada semana se hace una sola; se guardan 8)
+function CopiasAdmin() {
+  const [st, setSt] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const cargar = () => fetchBackups().then(setSt).catch(e => setErr(e.message));
+  useEffect(() => { cargar(); }, []);
+  const ahora = async () => { setBusy(true); setErr(''); try { await backupNow(); await cargar(); } catch (e) { setErr(e.message); } setBusy(false); };
+  const kb = b => (b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB');
+  if (!st && !err) return null;
+  return (
+    <div className="gv-admin">
+      <p className="section-title"><Archive size={13} style={{ verticalAlign: -2 }}/> Copias de seguridad <span style={{ color: 'var(--text-3)', fontWeight: 400 }}>(solo lo ves tú)</span></p>
+      <p className="gv-muted" style={{ marginBottom: 8 }}>Cada semana se guarda sola una copia de las colecciones de todo el mundo (y de préstamos, peticiones y perfiles por reclamar). Se conservan las 8 últimas{st?.carpeta ? <> en <code>{st.carpeta}</code></> : ''}.</p>
+      {err && <p className="gv-error">{err}</p>}
+      {st && st.copias.map(c => (
+        <div key={c.nombre} className="gv-admin-row">
+          <Archive size={16} style={{ color: 'var(--text-3)' }}/>
+          <b style={{ minWidth: 170 }}>{new Date(c.fecha).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' })}</b>
+          <span className="gv-muted" style={{ flex: 1 }}>{c.nombre} · {kb(c.bytes)}</span>
+          <Btn size="sm" variant="secondary" onClick={() => descargarBackup(c.nombre).catch(e => setErr(e.message))}><Download size={13}/> Descargar</Btn>
+        </div>
+      ))}
+      {st && !st.copias.length && <p className="gv-muted">Todavía no hay ninguna copia.</p>}
+      <Btn size="sm" style={{ marginTop: 10 }} onClick={ahora} disabled={busy}>{busy ? 'Copiando…' : 'Hacer una copia ahora'}</Btn>
     </div>
   );
 }
@@ -124,25 +156,46 @@ export function PerfilPage() {
   const [orden, setOrden] = useState('nombre');
   const [soloLibres, setSoloLibres] = useState(false);
   const [sel, setSel] = useState(null);
+  const [cruce, setCruce] = useState('todo');            // todo | comun | suyo | mio — comparar con mi colección
+  const [mios, setMios] = useState([]);                  // mis juegos (de este aparato) con su consola
+  useEffect(() => {
+    const a = window.api; if (!a) return;
+    Promise.all([a.juegos.getAll({}), a.plataformas.getAll()]).then(([js, ps]) => {
+      const pn = Object.fromEntries(ps.map(p => [p.id, p])); setMios(js.map(j => ({ ...j, plataformaNombre: pn[j.plataformaId]?.nombre || '', _plat: pn[j.plataformaId] })));
+    }).catch(() => {});
+  }, []);
 
-  useEffect(() => { setV(null); setErr(''); setQ(''); setPlat(''); setTab('juegos'); if (me) fetchView(user).then(setV).catch(e => setErr(e.message)); }, [user, me]);
+  useEffect(() => { setV(null); setErr(''); setQ(''); setPlat(''); setTab('juegos'); setCruce('todo'); if (me) fetchView(user).then(setV).catch(e => setErr(e.message)); }, [user, me]);
 
   const d = v?.data;
   const platPorId = useMemo(() => Object.fromEntries((d?.plataformas || []).map(p => [p.id, p])), [d]);
   const cfIdx = useMemo(() => indexCreditos(v?.creditos), [v]);
+  // Juegos en común: misma consola y mismo juego (aunque esté escrito distinto)
+  const kj = j => claveConsola(j.plataformaNombre) + '|' + claveJuego(j.nombre);
+  const misClaves = useMemo(() => new Set(mios.map(kj)), [mios]); // eslint-disable-line react-hooks/exhaustive-deps
+  const suyos = useMemo(() => (d ? d.juegos.map(j => ({ ...j, plataformaNombre: platPorId[j.plataformaId]?.nombre || '' })) : []), [d, platPorId]);
+  const susClaves = useMemo(() => new Set(suyos.map(kj)), [suyos]); // eslint-disable-line react-hooks/exhaustive-deps
+  const nCruce = useMemo(() => ({
+    comun: suyos.filter(j => misClaves.has(kj(j))).length,
+    suyo: suyos.filter(j => !misClaves.has(kj(j))).length,
+    mio: mios.filter(j => !susClaves.has(kj(j))).length,
+  }), [suyos, mios, misClaves, susClaves]); // eslint-disable-line react-hooks/exhaustive-deps
   const juegos = useMemo(() => {
     if (!d) return [];
     const nq = normalize(q);
-    return d.juegos
-      .map(j => ({ ...j, plataformaNombre: platPorId[j.plataformaId]?.nombre || '' }))
-      .filter(j => (!plat || String(j.plataformaId) === plat) && (!nq || normalize(j.nombre + ' ' + (j.tituloOriginal || '')).includes(nq)) && (!soloLibres || !j.prestadoA))
+    const base = cruce === 'mio' ? mios.filter(j => !susClaves.has(kj(j))).map(j => ({ ...j, _mio: true }))
+      : cruce === 'comun' ? suyos.filter(j => misClaves.has(kj(j)))
+      : cruce === 'suyo' ? suyos.filter(j => !misClaves.has(kj(j))) : suyos;
+    return base
+      .filter(j => (!plat || cruce === 'mio' || String(j.plataformaId) === plat) && (!nq || normalize(j.nombre + ' ' + (j.tituloOriginal || '')).includes(nq)) && (!soloLibres || !j.prestadoA))
       .sort(ORDEN[orden]);
-  }, [d, q, plat, orden, soloLibres, platPorId]);
+  }, [d, q, plat, orden, soloLibres, suyos, mios, cruce, misClaves, susClaves]); // eslint-disable-line react-hooks/exhaustive-deps
   const pleg = useCollapse('perfil');
   const grupos = useMemo(() => {
     const m = new Map();
-    for (const j of juegos) { if (!m.has(j.plataformaId)) m.set(j.plataformaId, []); m.get(j.plataformaId).push(j); }
-    return [...m.entries()].map(([id, js]) => { const p = platPorId[id]; return { id: String(id), nombre: p?.nombre || 'Sin consola', img: p ? firstImg(p.imagenes) : null, juegos: js }; })
+    // por nombre de consola: así vale igual para sus juegos y para los míos («Solo yo»)
+    for (const j of juegos) { const k = j.plataformaNombre || 'Sin consola'; if (!m.has(k)) m.set(k, []); m.get(k).push(j); }
+    return [...m.entries()].map(([nombre, js]) => { const p = js[0]._mio ? js[0]._plat : platPorId[js[0].plataformaId]; return { id: nombre, nombre, img: p ? firstImg(p.imagenes) : null, juegos: js }; })
       .sort((a, b) => b.juegos.length - a.juegos.length);
   }, [juegos, platPorId]);
 
@@ -174,6 +227,13 @@ export function PerfilPage() {
       </div>
 
       {tab === 'juegos' && (<>
+        {!esYo && mios.length > 0 && (
+          <div className="seg gv-cruce" role="group" aria-label="Comparar con mi colección">
+            {[['todo', 'Toda su colección', suyos.length], ['comun', 'En común', nCruce.comun], ['suyo', 'Solo tiene ' + (v.display.split(' ')[0]), nCruce.suyo], ['mio', 'Solo tengo yo', nCruce.mio]].map(([k, l, n]) => (
+              <button key={k} className={'seg-btn' + (cruce === k ? ' active' : '')} onClick={() => setCruce(k)}>{l} <span className="lz-n">{n}</span></button>
+            ))}
+          </div>
+        )}
         <div className="filter-bar">
           <div className="field" style={{ flex: '1 1 220px' }}>
             <div className="search-wrap">
@@ -181,7 +241,7 @@ export function PerfilPage() {
               <input className="field-input search-input" placeholder={`Buscar en la colección de ${v.display}…`} value={q} onChange={e => setQ(e.target.value)}/>
             </div>
           </div>
-          <select className="field-input field-select" style={{ width: 'auto', minWidth: 160 }} value={plat} onChange={e => setPlat(e.target.value)} aria-label="Consola">
+          <select className="field-input field-select" style={{ width: 'auto', minWidth: 160 }} value={plat} onChange={e => setPlat(e.target.value)} aria-label="Consola" disabled={cruce === 'mio'}>
             <option value="">Todas las consolas</option>
             {d.plataformas.slice().sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')).map(p => <option key={p.id} value={p.id}>{p.nombre} ({nPorPlat[p.id] || 0})</option>)}
           </select>
@@ -192,13 +252,15 @@ export function PerfilPage() {
         </div>
         {juegos.length === 0
           ? <EmptyState icon={<Gamepad2 size={52}/>} title={d.juegos.length ? 'Sin resultados' : 'Aún no tiene juegos'} description={d.juegos.length ? 'Prueba con otra búsqueda.' : ''}/>
-          : plat ? <div className="gcard-grid">{juegos.map(j => <GameCard key={j.id} juego={j} credito={findCredito(cfIdx, j)} onClick={() => setSel(j)}/>)}</div>
+          : plat && cruce !== 'mio' ? <div className="gcard-grid">{juegos.map(j => <GameCard key={j.id} juego={j} credito={findCredito(cfIdx, j)} onClick={() => setSel(j)}/>)}</div>
           : (<>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: -6 }}><CollapseAll ids={grupos.map(g => g.id)} c={pleg}/></div>
             {grupos.map(g => (
               <div key={g.id} style={{ marginBottom: pleg.isClosed(g.id) ? 4 : 24 }}>
                 <GroupHead closed={pleg.isClosed(g.id)} onToggle={() => pleg.toggle(g.id)}>{g.img && <img src={g.img} alt=""/>}{g.nombre} <span className="grp-n">({g.juegos.length})</span></GroupHead>
-                {!pleg.isClosed(g.id) && <div className="gcard-grid">{g.juegos.map(j => <GameCard key={j.id} juego={j} credito={findCredito(cfIdx, j)} onClick={() => setSel(j)}/>)}</div>}
+                {!pleg.isClosed(g.id) && <div className="gcard-grid">{g.juegos.map(j => j._mio
+                  ? <GameCard key={'m' + j.id} juego={j} onClick={() => nav(`/plataformas/${j.plataformaId}`)}/>
+                  : <GameCard key={j.id} juego={j} credito={findCredito(cfIdx, j)} onClick={() => setSel(j)}/>)}</div>}
               </div>
             ))}
           </>)}
@@ -283,6 +345,7 @@ function JuegoLectura({ juego, plat, credito, dueno, onClose }) {
               : <button className="btn btn-primary btn-sm" style={{ marginLeft: 'auto' }} disabled={pedido === '…'} onClick={pedir}><Hand size={13}/> Pedírselo</button>)}
           </div>
           {pedido && pedido !== 'ok' && pedido !== '…' && <p className="gv-error">{pedido}</p>}
+          <HistorialPrestamos raw={juego.historialPrestamos} compacto/>
           {credito && (
             <div className={'jp-cf jp-cf-' + credito.e} style={{ margin: '12px 0 0' }}>
               <div className="jp-cf-head"><Trophy size={15}/><b>{credito.e === 'terminado' ? `${dueno.display} se lo pasó${credito.y ? ' en ' + credito.y : ''}` : ESTADO_CF[credito.e]?.txt}</b></div>
