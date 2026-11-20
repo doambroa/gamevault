@@ -37,7 +37,7 @@ export default function ReclamarPage() {
         </>) : !info ? <SkeletonList n={2}/> : (<>
           <div className="gv-claim-who"><Avatar user={{ user: info.id, display: info.display }} size={56}/><div><b>{info.display}</b><small>{info.juegos} juego{info.juegos !== 1 ? 's' : ''} · {info.plataformas} consola{info.plataformas !== 1 ? 's' : ''}</small></div></div>
           {info.admin ? (<>
-            <p className="gv-claim-aviso"><ShieldAlert size={16}/> Este es el enlace de <b>{info.display}</b>. Estás dentro como <b>{me.display}</b> (administrador), así que aquí no se puede aceptar: tu colección no cambia.</p>
+            <p className="gv-claim-aviso"><ShieldAlert size={16}/><span>Este es el enlace de <b>{info.display}</b>. Estás dentro como <b>{me.display}</b> (administrador), así que aquí no se puede aceptar: tu colección no cambia.</span></p>
             <p>Mándaselo a {info.display}: cuando lo abra con <b>su</b> cuenta, estos juegos pasarán a <b>su</b> colección, separada de la tuya.</p>
             <Btn size="lg" onClick={copiar}>{copiado ? <Check size={16}/> : <Copy size={16}/>} {copiado ? 'Enlace copiado' : 'Copiar el enlace para mandárselo'}</Btn>
             <button className="gv-link" style={{ marginTop: 6 }} onClick={() => nav('/dashboard')}>Volver a mi colección</button>

@@ -330,6 +330,7 @@ const server = file => JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data
     await page.getByText(/aquí no se puede aceptar: tu colección no cambia/).waitFor({ timeout: 15000 });
     assert(await page.getByRole('button', { name: /Sí, soy|Sí, son míos/ }).count() === 0, 'botón de aceptar');
     await page.getByRole('button', { name: /Copiar el enlace para mandárselo/ }).waitFor();
+    await page.waitForTimeout(600);
     await shot('enlace-admin');
     const r = await page.evaluate(async c => { const x = await fetch('api.php?action=claim', { method: 'POST', headers: { 'X-GV': '1', 'Content-Type': 'application/json' }, body: JSON.stringify({ id: '~andres-vieira', code: c }) }); return x.status; }, code);
     assert(r === 403, 'el servidor lo debería rechazar: ' + r);
