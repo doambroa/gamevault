@@ -6,6 +6,7 @@
 // Colección: collection (la mía), save (subir), upload (fotos propias)
 // Comunidad: users, view (colección de otra persona, solo lectura), loans (zona de préstamos)
 // Créditos Finales: creditos (juegos terminados de un usuario, si la app está instalada al lado)
+// Retos Switcherino: retos, reto_aporte, reto_guardar, reto_borrar, reto_alias, porra_guardar, porra_voto, porra_ganador
 // Perfiles por reclamar: colecciones cargadas de antemano (p. ej. de una hoja de cálculo) para gente
 //   que aún no tiene cuenta. Su id empieza por «~». Quien tenga el enlace (o el usuario sugerido)
 //   la reclama y pasa a su colección: claim. La lista con los enlaces la ven los administradores: pending.
@@ -145,6 +146,143 @@ function weeklyBackup() {
 function pendings() { global $DIR; return readJson("$DIR/pending.json", []); }
 function isPendingId($u) { return is_string($u) && preg_match('/^~[a-z0-9-]{2,40}$/', $u) && isset(pendings()[$u]); }
 function isAdmin($u) { global $cfg; return $u && in_array($u, (array)($cfg['admins'] ?? ['soiber']), true); }
+
+// ── Retos Switcherino: playlist de estación (un tema por día) y porra de los Game Awards ──────────
+// Todo en data/retos.json: { playlists: {id: …}, porras: {id: …}, alias: {apodo: usuario} }
+// Quién aporta/vota se guarda con una clave: el usuario, un perfil por reclamar (~id) o un apodo (@apodo)
+// para la gente sin cuenta que el administrador añade a mano (como en los documentos de antes).
+function retosFile() { global $DIR; return "$DIR/retos.json"; }
+function retosData() { $d = readJson(retosFile(), []); return $d + ['playlists' => [], 'porras' => [], 'alias' => []]; }
+function retosTx(callable $fn) {
+  return jsonTx(retosFile(), function (&$d) use ($fn) {
+    foreach (['playlists', 'porras', 'alias'] as $k) if (!isset($d[$k]) || !is_array($d[$k])) $d[$k] = [];
+    return $fn($d);
+  });
+}
+function hoyMadrid() { return new DateTime('now', new DateTimeZone('Europe/Madrid')); }
+// Día del reto que toca hoy (1…n), 0 si aún no empezó, n+1 si ya terminó
+function diaReto($pl) {
+  if (empty($pl['inicio'])) return 0;
+  $ini = DateTime::createFromFormat('!Y-m-d', $pl['inicio'], new DateTimeZone('Europe/Madrid'));
+  if (!$ini) return 0;
+  $hoy = DateTime::createFromFormat('!Y-m-d', hoyMadrid()->format('Y-m-d'), new DateTimeZone('Europe/Madrid'));
+  $d = (int)$ini->diff($hoy)->format('%r%a') + 1;
+  if ($d < 1) return 0;
+  return min($d, count($pl['dias'] ?? []) + 1);
+}
+function normAlias($s) { return preg_replace('/[^a-z0-9]/', '', strtolower((string)$s)); }
+// ¿A quién corresponde una clave? → {key, user?, display, avatar?, pending?, alias?}
+function quienRetos($key, $alias) {
+  static $all = null, $prof = null, $pend = null;
+  if ($all === null) { $all = users(); $prof = profiles(); $pend = pendings(); }
+  $k = (string)$key;
+  if ($k !== '' && $k[0] === '@') {
+    $a = substr($k, 1); $to = $alias[normAlias($a)] ?? null;
+    if (!$to && isset($all[normAlias($a)])) $to = normAlias($a);
+    if ($to && (isset($all[$to]) || isset($pend[$to]))) return ['alias' => $a] + quienRetos($to, $alias);
+    return ['key' => $k, 'display' => $a, 'alias' => $a, 'sinCuenta' => true];
+  }
+  if (isset($all[$k])) return ['key' => $k] + publicUser($k, $all[$k], $prof);
+  if (isset($pend[$k])) return ['key' => $k, 'user' => $k, 'display' => $pend[$k]['display'] ?? $k, 'pending' => true];
+  return ['key' => $k, 'display' => $k, 'sinCuenta' => true];
+}
+function ytId($url) {
+  $url = trim((string)$url);
+  if (preg_match('~^[A-Za-z0-9_-]{11}$~', $url)) return $url;
+  if (!preg_match('~^https?://~i', $url)) $url = 'https://' . $url;
+  $p = parse_url($url); $h = strtolower(preg_replace('/^(www|m|music)\./', '', $p['host'] ?? ''));
+  if ($h === 'youtu.be') $id = explode('/', trim($p['path'] ?? '', '/'))[0] ?? '';
+  elseif ($h === 'youtube.com' || $h === 'youtube-nocookie.com') {
+    parse_str($p['query'] ?? '', $q);
+    $id = $q['v'] ?? '';
+    if (!$id && preg_match('~/(?:embed|shorts|live|v)/([A-Za-z0-9_-]{11})~', $p['path'] ?? '', $m)) $id = $m[1];
+  } else return null;
+  return preg_match('~^[A-Za-z0-9_-]{11}$~', (string)$id) ? $id : null;
+}
+// Título del vídeo con oEmbed de YouTube (sin clave). Si no hay internet en el servidor, sin título.
+function ytTitulo($id) {
+  $u = 'https://www.youtube.com/oembed?format=json&url=' . rawurlencode("https://www.youtube.com/watch?v=$id");
+  $ctx = ['http' => ['timeout' => 6, 'ignore_errors' => true, 'header' => "User-Agent: GameVault\r\n"]];
+  foreach ([ini_get('openssl.cafile'), dirname(PHP_BINARY) . '/extras/ssl/cacert.pem', 'C:/xampp/php/extras/ssl/cacert.pem'] as $ca)
+    if ($ca && @is_file($ca)) { $ctx['ssl'] = ['cafile' => $ca]; break; }
+  if (function_exists('curl_init')) {
+    $ch = curl_init($u);
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 6, CURLOPT_CONNECTTIMEOUT => 4] + (isset($ctx['ssl']) ? [CURLOPT_CAINFO => $ctx['ssl']['cafile']] : []));
+    $r = curl_exec($ch); curl_close($ch);
+  } else $r = @file_get_contents($u, false, stream_context_create($ctx));
+  $j = $r ? json_decode($r, true) : null;
+  return is_array($j) && !empty($j['title']) ? ['titulo' => mb_substr($j['title'], 0, 200), 'canal' => mb_substr((string)($j['author_name'] ?? ''), 0, 80)] : null;
+}
+// Lo que ve cada uno de una porra: los votos de los demás solo cuando se cierra
+function porraCerrada($po) { return ($po['estado'] ?? '') === 'cerrada' || (!empty($po['cierre']) && strtotime($po['cierre']) <= time()); }
+function porraPuntos($po) {
+  $pts = [];
+  foreach (($po['votos'] ?? []) as $k => $v) {
+    $p = 0; $ac = 0;
+    foreach (($po['categorias'] ?? []) as $c) {
+      if (!empty($c['ganador']) && ($v[$c['id']] ?? null) === $c['ganador']) { $p += max(1, (int)($c['puntos'] ?? 1)); $ac++; }
+    }
+    $pts[$k] = ['puntos' => $p, 'aciertos' => $ac];
+  }
+  return $pts;
+}
+function porraVista($po, $me, $alias, $admin) {
+  $cerr = porraCerrada($po);
+  $votos = $po['votos'] ?? [];
+  $res = $po; unset($res['votos'], $res['avisados']);
+  $res['cerrada'] = $cerr;
+  $res['mios'] = $votos[$me] ?? (object)[];
+  $pts = porraPuntos($po);
+  $part = [];
+  foreach ($votos as $k => $v) {
+    $row = ['quien' => quienRetos($k, $alias), 'n' => count($v)];
+    // antes del cierre nadie ve los votos de los demás (el administrador solo los que mete él por otros)
+    if ($cerr || ($admin && ($k[0] === '@' || $k[0] === '~'))) $row['votos'] = $v;
+    if ($cerr) $row += $pts[$k];
+    $part[] = $row;
+  }
+  $res['participantes'] = $part;
+  $res['ganadoresPuestos'] = count(array_filter($po['categorias'] ?? [], function ($c) { return !empty($c['ganador']); }));
+  return $res;
+}
+function playlistVista($pl, $alias) {
+  $res = $pl; $res['hoy'] = diaReto($pl);
+  $ap = [];
+  foreach (($pl['aportes'] ?? []) as $dia => $l) foreach ($l as $k => $a) $ap[$dia][(string)$k] = $a + ['quien' => quienRetos($k, $alias)];
+  $res['aportes'] = (object)$ap;
+  return $res;
+}
+// Avisos de los retos, se crean al consultar los avisos: «hoy toca el día N», «ya puedes hacer la porra»…
+function avisosRetos($u) {
+  global $DIR;
+  if (!is_file(retosFile())) return;
+  $d = retosData(); $ya = [];
+  foreach ((readJson("$DIR/notifs.json", [])[$u] ?? []) as $n) if (!empty($n['clave'])) $ya[$n['clave']] = true;
+  foreach ($d['playlists'] as $pl) {
+    if (($pl['estado'] ?? '') !== 'activo') continue;
+    $h = diaReto($pl); $n = count($pl['dias'] ?? []);
+    if ($h < 1 || $h > $n) continue;
+    $clave = "pl:{$pl['id']}:$h";
+    if (isset($ya[$clave]) || isset($pl['aportes'][$h][$u])) continue;
+    notify($u, 'reto', 'switcherino', "Día $h de «{$pl['titulo']}»: " . mb_substr($pl['dias'][$h - 1]['t'] ?? '', 0, 160), ['clave' => $clave, 'link' => '/retos']);
+  }
+  foreach ($d['porras'] as $po) {
+    if (($po['estado'] ?? '') !== 'abierta' || porraCerrada($po)) continue;
+    $faltan = count($po['categorias'] ?? []) - count($po['votos'][$u] ?? []);
+    $clave = "po:{$po['id']}";
+    if (!isset($ya[$clave]) && $faltan > 0) notify($u, 'porra', 'switcherino', "¡Ya puedes hacer tu porra: «{$po['titulo']}»!", ['clave' => $clave, 'link' => '/retos/porra']);
+    $clave2 = "po:{$po['id']}:ultimo";
+    if (!isset($ya[$clave2]) && $faltan > 0 && !empty($po['cierre']) && strtotime($po['cierre']) - time() < 36 * 3600)
+      notify($u, 'porra', 'switcherino', "Te faltan $faltan categorías de la porra y se cierra pronto", ['clave' => $clave2, 'link' => '/retos/porra']);
+  }
+}
+function leerAvisoClave($u, $clave) {
+  global $DIR;
+  if (!is_file("$DIR/notifs.json")) return;
+  jsonTx("$DIR/notifs.json", function (&$d) use ($u, $clave) { foreach (($d[$u] ?? []) as $k => $n) if (($n['clave'] ?? '') === $clave) $d[$u][$k]['leida'] = true; });
+}
+function slugId($s) { $s = strtr(mb_strtolower((string)$s), ['á'=>'a','é'=>'e','í'=>'i','ó'=>'o','ú'=>'u','ü'=>'u','ñ'=>'n','ç'=>'c','à'=>'a','è'=>'e','ò'=>'o']); $s = trim(preg_replace('/[^a-z0-9]+/', '-', $s), '-'); return substr($s ?: 'reto', 0, 40) . '-' . substr(bin2hex(random_bytes(3)), 0, 4); }
+function txt($s, $n) { return mb_substr(trim(preg_replace('/\s+/u', ' ', (string)$s)), 0, $n); }
 
 // ── Sesión (web) o token (apps) ────────────────────────────────────────────────
 $ME = null; $VIA = null;
@@ -515,6 +653,7 @@ switch ($action) {
   /* ---------- avisos ---------- */
   case 'notifs':    // GET → { avisos: [...], sinLeer: n }
     $u = requireUser(); $all = users(); $prof = profiles();
+    try { avisosRetos($u); } catch (Throwable $e) {}
     $l = array_reverse(readJson("$DIR/notifs.json", [])[$u] ?? []);
     foreach ($l as $k => $n) $l[$k]['quien'] = isset($all[$n['de']]) ? publicUser($n['de'], $all[$n['de']], $prof) : ['user' => $n['de'], 'display' => $n['de']];
     out(['avisos' => $l, 'sinLeer' => count(array_filter($l, function ($n) { return empty($n['leida']); }))]);
@@ -613,8 +752,178 @@ switch ($action) {
     // las peticiones que le hicieron mientras no tenía cuenta pasan a su cuenta
     if (is_file("$DIR/requests.json")) reqTx(function (&$l) use ($id, $u) { foreach ($l as $k => $r) { if ($r['to'] === $id) $l[$k]['to'] = $u; } });
     if (is_file("$DIR/notifs.json")) jsonTx("$DIR/notifs.json", function (&$d) use ($id, $u) { if (!empty($d[$id])) { $d[$u] = array_slice(array_merge($d[$u] ?? [], $d[$id]), -60); unset($d[$id]); } });
+    if (is_file(retosFile())) retosTx(function (&$d) use ($id, $u) {
+      foreach ($d['alias'] as $a => $to) if ($to === $id) $d['alias'][$a] = $u;
+      foreach ($d['playlists'] as $pk => $pl) foreach (($pl['aportes'] ?? []) as $dia => $l) if (isset($l[$id])) { if (!isset($l[$u])) $d['playlists'][$pk]['aportes'][$dia][$u] = $l[$id]; unset($d['playlists'][$pk]['aportes'][$dia][$id]); }
+      foreach ($d['porras'] as $pk => $po) if (isset($po['votos'][$id])) { $d['porras'][$pk]['votos'][$u] = ($po['votos'][$u] ?? []) + $po['votos'][$id]; unset($d['porras'][$pk]['votos'][$id]); }
+    });
     @rename(collFile($id), collFile($id) . '.reclamado-por-' . $u);
     out(['ok' => true, 'rev' => $rev] + counts(['data' => $merged]));
+
+  /* ---------- retos Switcherino ---------- */
+  case 'retos':     // GET → { playlists:[…], porras:[…], admin, alias, gente }
+    $u = requireUser(); $d = retosData(); $adm = isAdmin($u);
+    $pls = []; foreach ($d['playlists'] as $pl) if ($adm || ($pl['estado'] ?? '') !== 'borrador') $pls[] = playlistVista($pl, $d['alias']);
+    usort($pls, function ($a, $b) { return strcmp((string)($b['inicio'] ?? '9999'), (string)($a['inicio'] ?? '9999')); });
+    $pos = []; foreach ($d['porras'] as $po) if ($adm || ($po['estado'] ?? '') !== 'borrador') $pos[] = porraVista($po, $u, $d['alias'], $adm);
+    usort($pos, function ($a, $b) { return strcmp((string)($b['fecha'] ?? ''), (string)($a['fecha'] ?? '')); });
+    $res = ['playlists' => $pls, 'porras' => $pos, 'admin' => $adm, 'hoy' => hoyMadrid()->format('Y-m-d')];
+    if ($adm) {
+      $res['alias'] = (object)$d['alias'];
+      $g = []; $prof = profiles();
+      foreach (users() as $n => $i) $g[] = publicUser($n, $i, $prof);
+      foreach (pendings() as $id => $p) $g[] = ['user' => $id, 'display' => $p['display'] ?? $id, 'pending' => true];
+      $res['gente'] = $g;
+    }
+    out($res);
+
+  case 'reto_aporte': // POST {pid, dia, url, titulo?, para?}: mi tema para ese día (url vacía = quitarlo)
+    $u = requireUser(); $b = body(); $adm = isAdmin($u);
+    $para = trim((string)($b['para'] ?? ''));
+    if ($para !== '' && !$adm) out(['error' => 'Solo el administrador puede añadir temas de otros'], 403);
+    if ($para !== '' && $para[0] !== '@' && $para[0] !== '~' && !isset(users()[$para])) out(['error' => 'Esa persona no existe'], 400);
+    if ($para !== '' && $para[0] === '@') $para = '@' . txt(substr($para, 1), 30);
+    $key = $para !== '' ? $para : $u;
+    $url = trim((string)($b['url'] ?? '')); $id = null; $info = null;
+    if ($url !== '') {
+      $id = ytId($url);
+      if (!$id) out(['error' => 'Eso no parece un enlace de YouTube'], 400);
+      $info = trim((string)($b['titulo'] ?? '')) === '' ? ytTitulo($id) : null;
+    }
+    $res = retosTx(function (&$d) use ($b, $key, $url, $id, $info, $adm) {
+      $pid = (string)($b['pid'] ?? ''); $dia = (int)($b['dia'] ?? 0);
+      if (!isset($d['playlists'][$pid])) return ['error' => 'Ese reto no existe', 'code' => 404];
+      $pl = &$d['playlists'][$pid];
+      if ($dia < 1 || $dia > count($pl['dias'] ?? [])) return ['error' => 'Ese día no existe', 'code' => 400];
+      if (!$adm) {
+        if (($pl['estado'] ?? '') !== 'activo') return ['error' => 'Este reto no está en marcha', 'code' => 400];
+        if ($dia > diaReto($pl)) return ['error' => 'Ese día todavía no ha llegado', 'code' => 400];
+      }
+      if ($url === '') { unset($pl['aportes'][$dia][$key]); if (empty($pl['aportes'][$dia])) unset($pl['aportes'][$dia]); return ['ok' => true]; }
+      $prev = $pl['aportes'][$dia][$key] ?? [];
+      $tit = txt($b['titulo'] ?? '', 200);
+      if ($tit === '') $tit = $info['titulo'] ?? (($prev['yt'] ?? '') === $id ? ($prev['titulo'] ?? '') : '');
+      $pl['aportes'][$dia][$key] = ['yt' => $id, 'url' => mb_substr($url, 0, 300), 'titulo' => $tit, 'canal' => $info['canal'] ?? ($prev['canal'] ?? ''),
+        'nota' => txt($b['nota'] ?? ($prev['nota'] ?? ''), 200), 'fecha' => date('c')];
+      return ['ok' => true, 'aporte' => $pl['aportes'][$dia][$key]];
+    });
+    if (!empty($res['error'])) out(['error' => $res['error']], $res['code']);
+    if ($key === $u && $url !== '') leerAvisoClave($u, 'pl:' . (string)($b['pid'] ?? '') . ':' . (int)($b['dia'] ?? 0));
+    out($res);
+
+  case 'reto_guardar': // POST (admin) {id?, titulo, estacion, inicio, dias:[texto], estado, video, playlist, verFuturas}
+    $u = requireUser(); if (!isAdmin($u)) out(['error' => 'Solo para administradores'], 403);
+    $b = body();
+    $dias = []; foreach ((array)($b['dias'] ?? []) as $t) { $t = txt(is_array($t) ? ($t['t'] ?? '') : $t, 600); if ($t !== '') $dias[] = ['t' => $t]; }
+    if (!$dias) out(['error' => 'Pon al menos un día'], 400);
+    if (count($dias) > 62) out(['error' => 'Como mucho 62 días'], 400);
+    $ini = (string)($b['inicio'] ?? '');
+    if ($ini !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $ini)) out(['error' => 'Fecha de inicio no válida'], 400);
+    $estado = in_array($b['estado'] ?? '', ['borrador', 'activo', 'terminado'], true) ? $b['estado'] : 'borrador';
+    if ($estado === 'activo' && $ini === '') out(['error' => 'Para arrancarlo hace falta la fecha de inicio'], 400);
+    $pl = retosTx(function (&$d) use ($b, $dias, $ini, $estado, $u) {
+      $id = (string)($b['id'] ?? '');
+      if ($id === '' || !isset($d['playlists'][$id])) { $id = slugId($b['titulo'] ?? 'playlist'); $d['playlists'][$id] = ['id' => $id, 'creado' => date('c'), 'por' => $u, 'aportes' => []]; }
+      $p = &$d['playlists'][$id];
+      $p['titulo'] = txt($b['titulo'] ?? '', 80) ?: 'Playlist Switcherino';
+      $p['estacion'] = in_array($b['estacion'] ?? '', ['primavera', 'verano', 'otono', 'invierno', 'otra'], true) ? $b['estacion'] : 'otra';
+      $p['intro'] = txt($b['intro'] ?? '', 1000);
+      $p['inicio'] = $ini; $p['estado'] = $estado; $p['dias'] = $dias;
+      $p['video'] = txt($b['video'] ?? '', 300); $p['playlist'] = txt($b['playlist'] ?? '', 300);
+      $p['verFuturas'] = !empty($b['verFuturas']);
+      // si se quitan días del final, sus temas se quedan guardados por si se vuelven a poner
+      return $p;
+    });
+    $d = retosData();
+    out(['ok' => true, 'playlist' => playlistVista($pl, $d['alias'])]);
+
+  case 'porra_guardar': // POST (admin) {id?, titulo, fecha, cierre, estado, categorias:[{id?, nombre, puntos, nominados:[{id?, n, sub, img}], ganador}]}
+    $u = requireUser(); if (!isAdmin($u)) out(['error' => 'Solo para administradores'], 403);
+    $b = body();
+    $cats = [];
+    foreach ((array)($b['categorias'] ?? []) as $c) {
+      $noms = [];
+      foreach ((array)($c['nominados'] ?? []) as $n) {
+        $nn = txt($n['n'] ?? '', 120); if ($nn === '') continue;
+        $img = (string)($n['img'] ?? ''); if ($img !== '' && !preg_match('~^https://~', $img)) $img = '';
+        $noms[] = ['id' => preg_replace('/[^a-z0-9-]/', '', (string)($n['id'] ?? '')) ?: substr(bin2hex(random_bytes(4)), 0, 8), 'n' => $nn, 'sub' => txt($n['sub'] ?? '', 120), 'img' => mb_substr($img, 0, 400)];
+      }
+      $nom = txt($c['nombre'] ?? '', 120); if ($nom === '' || !$noms) continue;
+      $cid = preg_replace('/[^a-z0-9-]/', '', (string)($c['id'] ?? '')) ?: substr(bin2hex(random_bytes(4)), 0, 8);
+      $gan = (string)($c['ganador'] ?? ''); $okG = false; foreach ($noms as $n) if ($n['id'] === $gan) $okG = true;
+      $cats[] = ['id' => $cid, 'nombre' => $nom, 'en' => txt($c['en'] ?? '', 120), 'puntos' => max(1, min(10, (int)($c['puntos'] ?? 1))), 'nominados' => $noms, 'ganador' => $okG ? $gan : null];
+    }
+    if (!$cats) out(['error' => 'Pon al menos una categoría con nominados'], 400);
+    $estado = in_array($b['estado'] ?? '', ['borrador', 'abierta', 'cerrada'], true) ? $b['estado'] : 'borrador';
+    $po = retosTx(function (&$d) use ($b, $cats, $estado, $u) {
+      $id = (string)($b['id'] ?? '');
+      if ($id === '' || !isset($d['porras'][$id])) { $id = slugId($b['titulo'] ?? 'porra'); $d['porras'][$id] = ['id' => $id, 'creado' => date('c'), 'por' => $u, 'votos' => []]; }
+      $p = &$d['porras'][$id];
+      $p['titulo'] = txt($b['titulo'] ?? '', 80) ?: 'Porra Switcherino';
+      $p['intro'] = txt($b['intro'] ?? '', 1000);
+      $p['fecha'] = txt($b['fecha'] ?? '', 30); $p['cierre'] = txt($b['cierre'] ?? '', 30);
+      $p['estado'] = $estado; $p['categorias'] = $cats;
+      // votos a nominados que ya no existen se quitan
+      $ok = []; foreach ($cats as $c) foreach ($c['nominados'] as $n) $ok[$c['id']][$n['id']] = true;
+      foreach ($p['votos'] as $k => $v) { foreach ($v as $cid => $nid) if (empty($ok[$cid][$nid])) unset($p['votos'][$k][$cid]); if (empty($p['votos'][$k])) unset($p['votos'][$k]); }
+      return $p;
+    });
+    $d = retosData();
+    out(['ok' => true, 'porra' => porraVista($po, $u, $d['alias'], true)]);
+
+  case 'porra_voto': // POST {id, cat, nom, para?} — nom vacío = quitar el voto. Se puede cambiar hasta el cierre.
+    $u = requireUser(); $b = body(); $adm = isAdmin($u);
+    $para = trim((string)($b['para'] ?? ''));
+    if ($para !== '' && !$adm) out(['error' => 'Solo el administrador puede votar por otros'], 403);
+    if ($para !== '' && $para[0] === '@') $para = '@' . txt(substr($para, 1), 30);
+    $key = $para !== '' ? $para : $u;
+    $res = retosTx(function (&$d) use ($b, $key, $adm) {
+      $id = (string)($b['id'] ?? '');
+      if (!isset($d['porras'][$id])) return ['error' => 'Esa porra no existe', 'code' => 404];
+      $p = &$d['porras'][$id];
+      if (!$adm && (($p['estado'] ?? '') !== 'abierta' || porraCerrada($p))) return ['error' => 'La porra ya está cerrada', 'code' => 400];
+      $cid = (string)($b['cat'] ?? ''); $nid = (string)($b['nom'] ?? ''); $cat = null;
+      foreach ($p['categorias'] as $c) if ($c['id'] === $cid) $cat = $c;
+      if (!$cat) return ['error' => 'Esa categoría no existe', 'code' => 400];
+      if ($nid === '') { unset($p['votos'][$key][$cid]); if (empty($p['votos'][$key])) unset($p['votos'][$key]); return ['ok' => true, 'mios' => (object)($p['votos'][$key] ?? [])]; }
+      $ok = false; foreach ($cat['nominados'] as $n) if ($n['id'] === $nid) $ok = true;
+      if (!$ok) return ['error' => 'Ese nominado no está en la categoría', 'code' => 400];
+      $p['votos'][$key][$cid] = $nid;
+      return ['ok' => true, 'mios' => $p['votos'][$key], 'completa' => count($p['votos'][$key]) >= count($p['categorias'])];
+    });
+    if (!empty($res['error'])) out(['error' => $res['error']], $res['code']);
+    if ($key === $u && !empty($res['completa'])) { leerAvisoClave($u, 'po:' . (string)($b['id'] ?? '')); leerAvisoClave($u, 'po:' . (string)($b['id'] ?? '') . ':ultimo'); }
+    out($res);
+
+  case 'porra_ganador': // POST (admin) {id, cat, nom} — nom vacío = sin ganador todavía
+    $u = requireUser(); if (!isAdmin($u)) out(['error' => 'Solo para administradores'], 403);
+    $b = body();
+    $po = retosTx(function (&$d) use ($b) {
+      $id = (string)($b['id'] ?? ''); if (!isset($d['porras'][$id])) return null;
+      foreach ($d['porras'][$id]['categorias'] as $k => $c) if ($c['id'] === (string)($b['cat'] ?? '')) {
+        $nid = (string)($b['nom'] ?? ''); $ok = $nid === '';
+        foreach ($c['nominados'] as $n) if ($n['id'] === $nid) $ok = true;
+        if ($ok) $d['porras'][$id]['categorias'][$k]['ganador'] = $nid ?: null;
+      }
+      return $d['porras'][$id];
+    });
+    if (!$po) out(['error' => 'Esa porra no existe'], 404);
+    out(['ok' => true, 'porra' => porraVista($po, $u, retosData()['alias'], true)]);
+
+  case 'reto_borrar': // POST (admin) {tipo: playlist|porra, id}
+    $u = requireUser(); if (!isAdmin($u)) out(['error' => 'Solo para administradores'], 403);
+    $b = body(); $k = ($b['tipo'] ?? '') === 'porra' ? 'porras' : 'playlists';
+    if (is_file(retosFile())) @copy(retosFile(), retosFile() . '.bak');
+    retosTx(function (&$d) use ($b, $k) { unset($d[$k][(string)($b['id'] ?? '')]); });
+    out(['ok' => true]);
+
+  case 'reto_alias': // POST (admin) {alias, user} — «mario64» es tal usuario (user vacío = nadie)
+    $u = requireUser(); if (!isAdmin($u)) out(['error' => 'Solo para administradores'], 403);
+    $b = body(); $a = normAlias($b['alias'] ?? ''); $to = (string)($b['user'] ?? '');
+    if ($a === '') out(['error' => 'Falta el apodo'], 400);
+    if ($to !== '' && !isset(users()[$to]) && !isPendingId($to)) out(['error' => 'Esa persona no existe'], 400);
+    retosTx(function (&$d) use ($a, $to) { if ($to === '') unset($d['alias'][$a]); else $d['alias'][$a] = $to; });
+    out(['ok' => true]);
 
   default:
     out(['error' => 'Acción desconocida'], 404);

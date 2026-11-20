@@ -1,5 +1,17 @@
 # GameVault — Informe de pruebas y errores corregidos
 
+## Versión 2.3 (20-11-2026) · Retos Switcherino
+
+Unitarias 46/46 · escritorio 41/41 · comunidad 36/36 · Android 16/16 · iPhone 9/9 · accesorios 8/8 · **retos 28/28 (prueba nueva, tres pasadas)**. Probado además en el servidor real: las playlists cargadas, el título de YouTube se obtiene desde el servidor, crear y borrar un reto.
+
+Probado en retos: playlists importadas (31 días y 186 temas en otoño), escuchar todo en trozos de 50, copiar como documento, crear y arrancar una playlist, día de hoy resaltado, enlace no válido, añadir/cambiar/quitar tu tema, tema de un día pasado, temas de otros por el administrador (también sin cuenta), quién es quién, aviso diario y su número en el menú, no ver la frase de mañana hasta poner el tuyo, el servidor rechaza días futuros y añadir por otros sin ser administrador, los borradores no los ve nadie más; porra: plantilla 2026, votar con avance automático, volver y cambiar, teclado, resumen, guardado al recargar, nadie ve votos ajenos antes del cierre, votar por alguien sin cuenta, cierre, ganadores y clasificación, reclamar un perfil pasa sus temas y votos, móvil sin desplazamiento lateral.
+
+Errores encontrados y corregidos durante las pruebas:
+1. El servidor perdía de quién era cada tema al mandarlo a la app (tu tema no salía como tuyo).
+2. Al pasar de «Playlist» a «Porra» no se recargaban los datos (no se veía una porra recién abierta). Ahora se recarga al cambiar de pestaña, al volver a la ventana y cada minuto.
+3. Quien entraba sin colección (por ejemplo, solo para la porra) se quedaba en la bienvenida: «Ahora no» le lleva a los retos si venía de un enlace a ellos.
+4. En Windows, los identificadores de los retos con tildes salían raros; ahora se limpian bien.
+
 ## Versión 2.2.1 (19-11-2026)
 
 Unitarias 46/46 · escritorio 41/41 · comunidad 36/36 · Android 16/16 · iPhone 9/9 · accesorios 8/8.

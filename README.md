@@ -34,6 +34,21 @@ Las bases de datos de versiones anteriores se actualizan solas al abrir la 1.8 (
 
 ---
 
+## Novedades de la 2.3 · Retos Switcherino
+
+Apartado nuevo en el menú, **Retos Switcherino**, con dos retos:
+
+- **Playlist de la estación**: cada día una frase y cada uno pone el tema de videojuego que le evoca (enlace de YouTube; el título se coge solo).
+  - El día de hoy sale resaltado; al poner tu tema aparece el de mañana sombreado para ir pensándolo (el resto se descubre día a día, salvo que el administrador elija enseñarlas todas).
+  - Cada día, a quien no haya puesto su tema le sale un aviso con la frase.
+  - «Escuchar todo» crea al momento una lista de YouTube con los temas (de 50 en 50); «Copiar como documento» saca el texto con el formato del Drive.
+  - El administrador crea la playlist pegando las frases (una por línea), elige el día de inicio y la arranca cuando quiera. Puede añadir los temas que le pasen por el grupo (también de gente sin cuenta, con su apodo) y unir apodos con cuentas en «Quién es quién».
+  - Ya están cargadas «Veranito del amor» y «Otoño marrón» con todos sus temas, y el borrador de «Invierno Festivo Switcherino» con las 22 propuestas.
+- **Porra de los Game Awards**: categoría a categoría, con las tarjetas de los nominados y su portada. Al pulsar se guarda y pasa a la siguiente; se puede volver atrás y cambiar hasta el cierre. Al final, un resumen con lo elegido.
+  - Lo que vota cada uno no se ve hasta que se cierra la porra.
+  - Durante la gala, el administrador marca los ganadores («Marcar ganadores») y la clasificación se calcula sola para todos.
+  - La de 2026 viene preparada con las 30 categorías y los 155 nominados (Juego del año vale 3 puntos).
+
 ## Novedades de la 2.2.1
 
 - Seleccionar texto arrastrando dentro de una ventana y soltar fuera ya no la cierra.

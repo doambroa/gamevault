@@ -1,13 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Hand, Check, X, Clock, BellRing } from 'lucide-react';
+import { Bell, Hand, Check, X, Clock, BellRing, Music, Award } from 'lucide-react';
 import { useAccount, useNotifs, marcarLeidos, refreshNotifs, sistemaDisponible, sistemaActivado, activarSistema } from './account';
 import { Avatar } from './ui';
 
 /* Campana de avisos: te piden un juego, te contestan a una petición o te recuerdan que devuelvas algo.
  * Se consultan al servidor cada 2 minutos con la app abierta; si se activan, salen también como
  * notificación de Windows / Android / navegador. */
-const ICONO = { peticion: Hand, aceptada: Check, rechazada: X, recordatorio: Clock };
+const ICONO = { peticion: Hand, aceptada: Check, rechazada: X, recordatorio: Clock, reto: Music, porra: Award };
 
 export function hace(f) {
   if (!f) return '';
@@ -50,7 +50,7 @@ function AvisosPanel({ n, onClose, onNavigate }) {
   const ir = async a => {
     if (!a.leida) marcarLeidos([a.id]);
     onClose(); onNavigate?.();
-    nav('/prestamos');
+    nav(a.link || '/prestamos');
   };
   const toggleSis = async () => setSis(await activarSistema(!sis));
   return (
@@ -60,12 +60,12 @@ function AvisosPanel({ n, onClose, onNavigate }) {
         {n.sinLeer > 0 && <button className="gv-link" onClick={() => marcarLeidos()}>Marcar todo como leído</button>}
       </div>
       <div className="gv-avisos-list">
-        {(n.avisos || []).length === 0 && <p className="gv-muted" style={{ padding: '18px 14px' }}>No tienes avisos. Aquí saldrá cuando alguien te pida un juego, te conteste o te recuerde una devolución.</p>}
+        {(n.avisos || []).length === 0 && <p className="gv-muted" style={{ padding: '18px 14px' }}>No tienes avisos. Aquí saldrá cuando alguien te pida un juego, te conteste, te recuerde una devolución o toque un reto de Switcherino.</p>}
         {(n.avisos || []).slice(0, 30).map(a => {
           const I = ICONO[a.tipo] || Bell;
           return (
             <button key={a.id} className={'gv-aviso t-' + a.tipo + (a.leida ? '' : ' nuevo')} onClick={() => ir(a)}>
-              <span className="gv-aviso-av"><Avatar user={a.quien || { user: a.de, display: a.de }} size={32}/><i><I size={11}/></i></span>
+              <span className="gv-aviso-av">{a.de === 'switcherino' ? <span className="gv-avatar gv-avatar-ini gv-aviso-sw" style={{ width: 32, height: 32 }}><I size={16}/></span> : <Avatar user={a.quien || { user: a.de, display: a.de }} size={32}/>}<i><I size={11}/></i></span>
               <span className="gv-aviso-txt">{a.texto}<small>{hace(a.fecha)}</small></span>
             </button>
           );

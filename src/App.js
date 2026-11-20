@@ -17,8 +17,11 @@ import ComunidadPage, { PerfilPage } from './community/ComunidadPage';
 import PrestamosPage    from './community/PrestamosPage';
 import ReclamarPage     from './community/ReclamarPage';
 import PilaPage         from './pages/Pila/PilaPage';
+import RetosPage        from './retos/RetosPage';
 import { initAccount, useAccount, IS_APP } from './community/account';
 import { LoginScreen, ConflictModal, RemoteToast, ClaimBanner, AccountModal } from './community/ui';
+// Si se entra con un enlace a los retos (p. ej. el que se manda al grupo), se vuelve ahí aunque no tenga colección
+const HASH_INICIAL = typeof window !== 'undefined' ? window.location.hash || '' : '';
 
 const api = window.api;
 const isDesktop = api?.platform === 'electron';
@@ -77,8 +80,8 @@ export default function App() {
         <button className="ob-cuenta" onClick={() => setCuentaOb(true)}>¿Ya tienes cuenta? <b>Entra</b> y te traemos tu colección</button>
       )}
       {acc.me && (
-        <button className="ob-cuenta" onClick={async () => { try { await api.app.completeOnboarding(); } catch {} window.location.hash = '#/prestamos'; setFirstRun(false); }}>
-          Ahora no: <b>ver lo que tienen mis colegas</b>
+        <button className="ob-cuenta" onClick={async () => { try { await api.app.completeOnboarding(); } catch {} window.location.hash = HASH_INICIAL.startsWith('#/retos') ? HASH_INICIAL : '#/prestamos'; setFirstRun(false); }}>
+          Ahora no: <b>{HASH_INICIAL.startsWith('#/retos') ? 'ir a los retos de Switcherino' : 'ver lo que tienen mis colegas o los retos'}</b>
         </button>
       )}
       <AccountModal open={cuentaOb} onClose={() => setCuentaOb(false)}/>
@@ -107,6 +110,10 @@ export default function App() {
               <Route path="/comunidad"       element={<ComunidadPage/>}/>
               <Route path="/comunidad/:user" element={<PerfilPage/>}/>
               <Route path="/prestamos"       element={<PrestamosPage/>}/>
+              <Route path="/retos"           element={<RetosPage/>}/>
+              <Route path="/retos/playlist/:id" element={<RetosPage/>}/>
+              <Route path="/retos/porra"     element={<RetosPage tab="porra"/>}/>
+              <Route path="/retos/porra/:id" element={<RetosPage tab="porra"/>}/>
               <Route path="/reclamar/:id/:code" element={<ReclamarPage/>}/>
             </Routes>
           </main>

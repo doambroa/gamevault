@@ -477,3 +477,13 @@ if (typeof window !== 'undefined') {
   window.addEventListener('focus', () => { if (state.me) refrescarTodo(); });
   subs.add(() => { if (state.me && !reqState.cargado) refreshRequests(); if (state.me && !notState.cargado) refreshNotifs(); });
 }
+
+// ── Retos Switcherino (playlist por días y porra) ─────────────────────────────
+export const fetchRetos   = () => call('retos');
+export const aportarTema  = (pid, dia, url, extra = {}) => call('reto_aporte', { method: 'POST', body: { pid, dia, url, ...extra } });
+export const guardarPlaylist = pl => call('reto_guardar', { method: 'POST', body: pl });
+export const guardarPorra = po => call('porra_guardar', { method: 'POST', body: po });
+export const votarPorra   = (id, cat, nom, para) => call('porra_voto', { method: 'POST', body: { id, cat, nom, ...(para ? { para } : {}) } });
+export const ganadorPorra = (id, cat, nom) => call('porra_ganador', { method: 'POST', body: { id, cat, nom } });
+export const borrarReto   = (tipo, id) => call('reto_borrar', { method: 'POST', body: { tipo, id } });
+export const aliasReto    = (alias, user) => call('reto_alias', { method: 'POST', body: { alias, user } });

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Monitor, Gamepad2, Heart, BarChart2, Upload, Download, Settings, FolderOpen, MoreHorizontal, Users, ArrowLeftRight, Trophy, ExternalLink, Layers } from 'lucide-react';
+import { LayoutDashboard, Monitor, Gamepad2, Heart, BarChart2, Upload, Download, Settings, FolderOpen, MoreHorizontal, Users, ArrowLeftRight, Trophy, ExternalLink, Layers, Music, Award } from 'lucide-react';
 import { AccountButton, AccountModal } from '../../community/ui';
 import { useAccount, useRequests, useNotifs, creditosUrl } from '../../community/account';
 import { NotifBell } from '../../community/Avisos';
@@ -22,6 +22,11 @@ const NAV_COMUNIDAD = [
   { to:'/prestamos',   icon:ArrowLeftRight,   label:'Préstamos'      , movil:true  },
   { to:'/comunidad',   icon:Users,            label:'Comunidad'      , movil:false },
 ];
+// Retos Switcherino: playlist de la estación y porra de los Game Awards
+const NAV_RETOS = [
+  { to:'/retos',       icon:Music,            label:'Playlist'       , movil:false, exacto:true },
+  { to:'/retos/porra', icon:Award,            label:'Porra'          , movil:false },
+];
 
 export default function Sidebar() {
   const nav = useNavigate();
@@ -40,11 +45,16 @@ export default function Sidebar() {
   const notifs = useNotifs();
   const nAvisos = acc.me ? notifs.sinLeer || 0 : 0;
   const cfUrl = conComunidad && acc.me?.creditos !== false ? creditosUrl() : null;
-  const navItem = ({ to, icon: Icon, label, movil }, extra = '') => (
+  const activo = (to, exacto) => exacto ? (loc.pathname === to || loc.pathname.startsWith(to + '/playlist')) : loc.pathname.startsWith(to);
+  const sinLeer = t => acc.me ? (notifs.avisos || []).filter(a => !a.leida && a.tipo === t).length : 0;
+  const nRetos = sinLeer('reto'), nPorra = sinLeer('porra');
+  const navItem = ({ to, icon: Icon, label, movil, exacto }, extra = '') => (
     <button key={to + extra}
-      className={(extra ? 'sidebar-action sidebar-mob' : 'nav-item' + (movil ? '' : ' nav-desk')) + (loc.pathname.startsWith(to) ? ' active' : '')}
+      className={(extra ? 'sidebar-action sidebar-mob' : 'nav-item' + (movil ? '' : ' nav-desk')) + (activo(to, exacto) ? ' active' : '')}
       onClick={() => { nav(to); setMoreOpen(false); }}>
       <Icon size={extra ? 14 : 18}/><span>{label}</span>
+      {to === '/retos' && nRetos > 0 && <b className="nav-badge" title="Te falta el tema de hoy">{nRetos}</b>}
+      {to === '/retos/porra' && nPorra > 0 && <b className="nav-badge" title="Tienes la porra a medias">{nPorra}</b>}
       {to === '/prestamos' && nPet > 0 && <b className="nav-badge" title={`${nPet} petición${nPet !== 1 ? 'es' : ''} de préstamo`}>{nPet}</b>}
     </button>
   );
@@ -82,6 +92,8 @@ export default function Sidebar() {
           {NAV.map(i => navItem(i))}
           {conComunidad && <div className="nav-sep">Comunidad</div>}
           {conComunidad && NAV_COMUNIDAD.map(i => navItem(i))}
+          {conComunidad && <div className="nav-sep">Retos Switcherino</div>}
+          {conComunidad && NAV_RETOS.map(i => navItem(i))}
           {cfUrl && <a className="nav-item nav-desk nav-ext" href={cfUrl} target="_blank" rel="noreferrer" title="Abrir Créditos Finales (los juegos que te pasas cada año)">
             <Trophy size={18}/><span>Créditos Finales</span><ExternalLink size={12} className="nav-ext-i"/></a>}
           <button className={'nav-item nav-more' + (moreOpen ? ' active' : '')} onClick={() => setMoreOpen(o => !o)}>
@@ -93,7 +105,7 @@ export default function Sidebar() {
         <div className={'sidebar-footer' + (moreOpen ? ' open' : '')} onClick={() => setMoreOpen(false)}>
           {conComunidad && <NotifBell variant="menu" onNavigate={() => setMoreOpen(false)}/>}
           {conComunidad && <button className="sidebar-action sidebar-mob" onClick={() => setShowAccount(true)}><Users size={14}/> {acc.me ? 'Mi cuenta' : 'Iniciar sesión'}</button>}
-          {[...NAV, ...(conComunidad ? NAV_COMUNIDAD : [])].filter(i => !i.movil).map(i => navItem(i, 'mob'))}
+          {[...NAV, ...(conComunidad ? [...NAV_COMUNIDAD, ...NAV_RETOS] : [])].filter(i => !i.movil).map(i => navItem(i, 'mob'))}
           {cfUrl && <a className="sidebar-action sidebar-mob" href={cfUrl} target="_blank" rel="noreferrer"><Trophy size={14}/> Créditos Finales <ExternalLink size={11}/></a>}
           <button className="sidebar-action" onClick={doExport}>
             <Upload size={14}/> Exportar JSON
