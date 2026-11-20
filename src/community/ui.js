@@ -215,6 +215,34 @@ export function ConflictModal() {
   const [err, setErr] = useState('');
   if (!conflict || !me) return null;
   const go = async k => { setBusy(k); setErr(''); try { await resolveConflict(k); } catch (e) { setErr(e.message); } setBusy(''); };
+  if (conflict.otraCuenta) return (
+    <div className="modal-overlay" style={{ zIndex: 9500 }}>
+      <div className="modal-box" style={{ maxWidth: 560 }}>
+        <div className="modal-header"><h2 className="modal-title">Este aparato tiene la colección de otra cuenta</h2></div>
+        <div className="modal-body">
+          <p style={{ color: 'var(--text-1)', lineHeight: 1.6, marginBottom: 16 }}>
+            Aquí está la colección de <b>{conflict.otraCuenta}</b> ({cuenta(conflict.local?.counts)}) con cambios que aún no se han subido a su cuenta.
+            Las colecciones de cada persona <b>no se mezclan</b>: la suya no pasará a la tuya.
+          </p>
+          <div className="gv-conflict">
+            <button className="gv-conflict-opt" disabled={!!busy} onClick={() => go('salir')}>
+              <User size={22}/>
+              <b>Salir y que entre {conflict.otraCuenta}</b>
+              <small>Al entrar con su cuenta se suben sus cambios</small>
+              <span className="btn btn-secondary btn-sm">{busy === 'salir' ? 'Saliendo…' : 'Salir'}</span>
+            </button>
+            <button className="gv-conflict-opt" disabled={!!busy} onClick={() => go('descartar')}>
+              <Cloud size={22}/>
+              <b>Seguir como {me.display || me.user}</b>
+              <small>Se pierden esos cambios sin subir de {conflict.otraCuenta} y se carga tu colección</small>
+              <span className="btn btn-secondary btn-sm">{busy === 'descartar' ? 'Cargando…' : 'Usar la mía'}</span>
+            </button>
+          </div>
+          {err && <p className="gv-error">{err}</p>}
+        </div>
+      </div>
+    </div>
+  );
   return (
     <div className="modal-overlay" style={{ zIndex: 9500 }}>
       <div className="modal-box" style={{ maxWidth: 560 }}>

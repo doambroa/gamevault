@@ -302,3 +302,6 @@ button.lz-mov-p:hover span{text-decoration:underline}
 .lz-deseo .lz-mio-info{min-width:150px;flex:0 1 240px}
 .lz-deseo .lz-copias{flex:1;min-width:200px}
 .gv-cruce{display:flex;flex-wrap:wrap;margin-bottom:12px}.gv-cruce .seg-btn{gap:6px}
+
+.gv-claim-aviso{display:flex;gap:8px;align-items:flex-start;text-align:left;padding:10px 12px;border-radius:var(--r);background:rgba(244,162,97,.1);border:1px solid rgba(244,162,97,.35);color:var(--text-1)}
+.gv-claim-aviso svg{flex-shrink:0;margin-top:2px;color:var(--gold)}

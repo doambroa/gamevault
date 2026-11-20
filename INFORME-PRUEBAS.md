@@ -1,5 +1,13 @@
 # GameVault — Informe de pruebas y errores corregidos
 
+## Versión 2.3.2 (20-11-2026)
+
+Unitarias 46/46 · escritorio 41/41 · comunidad 41/41 (dos pasadas; 5 pruebas nuevas) · Android 16/16 · iPhone 9/9 · accesorios 8/8 · retos 28/28.
+
+Errores encontrados y corregidos:
+1. **Otra cuenta en el mismo aparato**: si alguien sin colección entraba en un aparato donde estaba la colección de otra persona, esa colección se subía a su cuenta. Ahora empieza vacía (o con la suya) y la otra no se toca. Probado: entra otra cuenta → vacía; vuelve soiber → su colección; cambios sin subir de la otra → pregunta y no sube nada ajeno.
+2. **Enlace de reclamar abierto por el administrador**: podía aceptarse y la colección de esa persona se habría sumado a la del administrador. Ahora el servidor lo rechaza y la página solo deja copiar el enlace. Para el resto, el texto dice para quién es el enlace y con qué cuenta has entrado, y pide confirmación.
+
 ## Versión 2.3.1 (20-11-2026)
 
 Unitarias 46/46 · escritorio 41/41 · comunidad 37/37 · Android 16/16 · iPhone 9/9 · accesorios 8/8 · retos 28/28.

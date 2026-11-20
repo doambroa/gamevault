@@ -318,7 +318,25 @@ const server = file => JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data
     const code = JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data/pending.json')))['~andres-vieira'].code;
     await p2.goto(URL0 + '#/reclamar/andres-vieira/' + code);
     await p2.locator('.gv-claim-who').getByText('Andrés Vieira').waitFor({ timeout: 15000 });
+    await p2.getByText(/Este enlace es para Andrés Vieira\. Ahora estás dentro como/).waitFor();
+    await p2.getByRole('button', { name: 'Sí, soy Andrés Vieira' }).waitFor();
+    await p2.getByRole('button', { name: /No soy Andrés Vieira: salir de esta cuenta/ }).waitFor();
     await shot('enlace-reclamar', p2);
+  });
+  await check('El administrador abre el enlace de Andrés: NO puede aceptarlo (su colección no cambia), solo copiarlo', async () => {
+    const code = JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data/pending.json')))['~andres-vieira'].code;
+    const n0 = server('c_soiber.json').data.juegos.length;
+    await page.goto(URL0 + '#/reclamar/andres-vieira/' + code);
+    await page.getByText(/aquí no se puede aceptar: tu colección no cambia/).waitFor({ timeout: 15000 });
+    assert(await page.getByRole('button', { name: /Sí, soy|Sí, son míos/ }).count() === 0, 'botón de aceptar');
+    await page.getByRole('button', { name: /Copiar el enlace para mandárselo/ }).waitFor();
+    await shot('enlace-admin');
+    const r = await page.evaluate(async c => { const x = await fetch('api.php?action=claim', { method: 'POST', headers: { 'X-GV': '1', 'Content-Type': 'application/json' }, body: JSON.stringify({ id: '~andres-vieira', code: c }) }); return x.status; }, code);
+    assert(r === 403, 'el servidor lo debería rechazar: ' + r);
+    assert(JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data/pending.json')))['~andres-vieira'], 'sigue pendiente');
+    assert(server('c_soiber.json').data.juegos.length === n0, 'la colección de soiber cambió');
+    await page.goto(URL0 + '#/dashboard');
+    await page.getByRole('heading', { name: 'Inicio' }).waitFor({ timeout: 15000 });
   });
 
   // ── Zlotny ve lo que le han dejado, en el móvil y con el tema claro del sistema ──
@@ -460,6 +478,55 @@ const server = file => JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data
     await page.getByRole('button', { name: /La de este dispositivo/ }).click();
     await page.getByText('¿Qué colección te quedas?').waitFor({ state: 'hidden', timeout: 15000 });
     assert(server('c_soiber.json').data.juegos.some(j => j.nombre === 'Otro juego'), 'no se subió la de este dispositivo');
+  });
+
+  // ── Mismo aparato, otra cuenta: las colecciones nunca se mezclan ──
+  const salirYEntrar = async user => {
+    await page.evaluate(() => fetch('api.php?action=logout', { method: 'POST', headers: { 'X-GV': '1', 'Content-Type': 'application/json' }, body: '{}' }));
+    await page.goto(URL0); await page.reload();
+    await page.locator('.gv-gate').waitFor({ timeout: 20000 });
+    await page.locator('.gv-gate input[autocomplete=username]').fill(user);
+    await page.locator('.gv-gate input[type=password]').fill('prueba1');
+    await page.locator('.gv-gate form button[type=submit]').click();
+  };
+  await check('Otra cuenta en el mismo aparato (sin colección): NO hereda la de soiber, empieza vacía', async () => {
+    const antes = JSON.stringify(server('c_soiber.json').data.juegos.length);
+    // por si quedara algo pendiente del paso anterior
+    for (let i = 0; i < 30 && (await page.evaluate(() => JSON.parse(localStorage.getItem('gv-sync') || '{}').dirty)); i++) await page.waitForTimeout(300);
+    const pre = fs.existsSync(path.join(SRV, 'gamevault/data/c_adriex86.json'));
+    execFileSync('php', ['-r', `$f=$argv[1]; $u=json_decode(file_get_contents($f),true); $u['adriex86']=['hash'=>password_hash('prueba1',PASSWORD_DEFAULT),'display'=>'AdriEx86','created'=>'2026-11-20','public'=>false]; file_put_contents($f,json_encode($u));`, path.join(SRV, 'creditos/data/users.json')]);
+    await salirYEntrar('adriex86');
+    await page.locator('h1.page-title, .ob-cuenta, .gv-gate').first().waitFor({ timeout: 30000 });
+    await page.waitForTimeout(1500);
+    const n = await page.evaluate(() => window.api.io.counts());
+    assert(n.juegos === 0 && n.plataformas === 0, 'heredó la colección: ' + JSON.stringify(n));
+    assert(!pre && (!fs.existsSync(path.join(SRV, 'gamevault/data/c_adriex86.json')) || server('c_adriex86.json').data.juegos.length === 0), 'subió algo a su cuenta');
+    assert(JSON.stringify(server('c_soiber.json').data.juegos.length) === antes, 'tocó la de soiber');
+    assert(JSON.parse(await page.evaluate(() => localStorage.getItem('gv-sync'))).user === 'adriex86', 'sync');
+  });
+  await check('Vuelve soiber al mismo aparato: recupera SU colección (sin nada de la otra cuenta)', async () => {
+    await salirYEntrar('soiber');
+    await page.getByRole('heading', { name: 'Inicio' }).waitFor({ timeout: 30000 });
+    const n = await page.evaluate(() => window.api.io.counts());
+    assert(n.juegos === server('c_soiber.json').data.juegos.length, 'juegos: ' + JSON.stringify(n));
+  });
+  await check('Si la otra cuenta tenía cambios sin subir: pregunta, y «Seguir como…» carga la tuya sin subir nada de la otra', async () => {
+    await page.waitForLoadState('load'); await page.waitForTimeout(2500);          // por si recarga al bajar la colección
+    await page.getByRole('heading', { name: 'Inicio' }).waitFor({ timeout: 20000 });
+    await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('gv-sync')); s.dirty = true; localStorage.setItem('gv-sync', JSON.stringify(s)); });
+    const soiberAntes = server('c_soiber.json').rev;
+    await salirYEntrar('zlotny');
+    await page.getByText('Este aparato tiene la colección de otra cuenta').waitFor({ timeout: 30000 });
+    await page.getByText(/no se mezclan/).waitFor();
+    await shot('otra-cuenta');
+    const zl = fs.existsSync(path.join(SRV, 'gamevault/data/c_zlotny.json')) ? server('c_zlotny.json').data.juegos.length : 0;
+    await page.getByRole('button', { name: /Seguir como Zlotny/ }).click();
+    await page.getByText('Este aparato tiene la colección de otra cuenta').waitFor({ state: 'detached', timeout: 20000 });
+    await page.waitForTimeout(1500);
+    const n = await page.evaluate(() => window.api.io.counts());
+    assert(n.juegos === zl, 'local de zlotny: ' + JSON.stringify(n) + ' servidor ' + zl);
+    assert((fs.existsSync(path.join(SRV, 'gamevault/data/c_zlotny.json')) ? server('c_zlotny.json').data.juegos.length : 0) === zl, 'subió la de soiber a zlotny');
+    assert(server('c_soiber.json').rev === soiberAntes, 'tocó la de soiber');
   });
 
   await browser.close();

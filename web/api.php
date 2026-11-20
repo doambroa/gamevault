@@ -725,7 +725,8 @@ switch ($action) {
     $ok = ($p['suggest'] ?? null) === $ME || hash_equals((string)($p['code'] ?? ''), (string)($_GET['code'] ?? ''));
     if (!$ok) out(['error' => 'El enlace no es válido'], 403);
     $c = readJson(collFile($id), null);
-    out(['id' => $id, 'display' => $p['display'] ?? $id] + counts($c ?: []));
+    out(['id' => $id, 'display' => $p['display'] ?? $id, 'esPara' => ($p['suggest'] ?? null) === $ME,
+      'admin' => isAdmin($ME) && ($p['suggest'] ?? null) !== $ME] + counts($c ?: []));
 
   case 'claim':     // POST {id, code}: la colección del perfil pasa a ser mía (se suma a la que tenga)
     $u = requireUser(); $b = body();
@@ -734,6 +735,8 @@ switch ($action) {
     if (!isset($all[$id])) out(['error' => 'Este perfil ya se ha reclamado o no existe'], 404);
     $p = $all[$id];
     if (($p['suggest'] ?? null) !== $u && !hash_equals((string)($p['code'] ?? ''), (string)($b['code'] ?? ''))) { sleep(1); out(['error' => 'El enlace no es válido'], 403); }
+    // el administrador abre los enlaces para probarlos o copiarlos: nunca se le pasan colecciones ajenas por error
+    if (isAdmin($u) && ($p['suggest'] ?? null) !== $u) out(['error' => 'Este enlace es para ' . ($p['display'] ?? $id) . ': tiene que abrirlo con su propia cuenta. La tuya de administrador no puede quedarse con su colección.'], 403);
     $src = readJson(collFile($id), null)['data'] ?? [];
     $f = collFile($u); $cur = readJson($f, null);
     $mine = $cur['data'] ?? ['plataformas' => [], 'juegos' => [], 'deseos' => [], 'accesorios' => []];

@@ -34,6 +34,11 @@ Las bases de datos de versiones anteriores se actualizan solas al abrir la 1.8 (
 
 ---
 
+## Novedades de la 2.3.2
+
+- **Las colecciones nunca se mezclan**: si en un aparato entra otra cuenta (un amigo en tu ordenador o tú en el suyo), se carga la colección de esa cuenta (o vacía) y la anterior no se sube a la nueva. Si la anterior tenía cambios sin subir, se pregunta qué hacer.
+- **Enlaces para reclamar perfiles**: dicen claramente para quién son y con qué cuenta has entrado («Sí, soy Andrés Vieira» / «No soy Andrés Vieira: salir»). El administrador no puede aceptar el enlace de otra persona (ni desde la app ni desde el servidor): solo copiarlo para mandárselo.
+
 ## Novedades de la 2.3.1
 
 - El tema por defecto ahora es **oscuro** (antes seguía al del sistema). Con «Auto», junto al interruptor de tema, vuelve a seguir al del sistema.

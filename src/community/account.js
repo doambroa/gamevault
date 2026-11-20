@@ -279,7 +279,7 @@ async function push({ force = false } = {}) {
 }
 function markDirtyRetry() { if (getSync().dirty) { clearTimeout(pushTimer); pushTimer = setTimeout(() => { push().catch(() => {}); }, 2000); } }
 
-async function pull({ reload = true } = {}) {
+async function pull({ reload = true, vaciar = false } = {}) {
   if (!state.me) return;
   busy = true;
   setSyncSt('syncing', 'Descargando tu colección…');
@@ -289,6 +289,9 @@ async function pull({ reload = true } = {}) {
       // primero marcar el asistente como hecho: sync.import guarda en disco al terminar (antes de recargar)
       if ((c.data.plataformas || []).length) { try { await api.app.completeOnboarding(); } catch {} }
       await api.sync.import(c.data);
+    } else if (vaciar) {
+      // cuenta sin colección y en el aparato está la de otra persona: se deja vacío, nunca se hereda
+      await api.sync.import({ plataformas: [], juegos: [], deseos: [], accesorios: [] });
     }
     setSync({ user: state.me.user, rev: c.rev, dirty: false });
     set({ conflict: null });
@@ -307,6 +310,16 @@ async function syncAtStart(me, { interactive = false } = {}) {
     const counts = await localCounts();
     const first = s.user !== me.user;
     const serverRev = me.rev || 0;
+    // En este aparato está la colección de OTRA cuenta (p. ej. un amigo entra en tu ordenador o tú en el suyo):
+    // las colecciones nunca se mezclan ni se suben a la cuenta equivocada. Si la otra no tenía nada sin subir,
+    // se cambia sin más a la colección de esta cuenta; si tenía cambios sin subir, se pregunta.
+    if (s.user && first) {
+      if (s.dirty) {
+        set({ conflict: { otraCuenta: s.user, local: { counts } } });
+        setSyncSt('conflict', 'En este aparato hay cambios sin subir de otra cuenta');
+      } else await pull({ reload: interactive, vaciar: true });
+      return;
+    }
     if (first) {
       if (!serverRev) { setSync({ user: me.user, rev: 0, dirty: false }); if (!isEmpty(counts)) await push({ force: true }); else setSyncSt('ok', 'Cuenta lista'); }
       else if (isEmpty(counts)) await pull({ reload: interactive });
@@ -320,7 +333,10 @@ async function syncAtStart(me, { interactive = false } = {}) {
   } catch (e) { /* el estado ya dice qué ha pasado */ }
 }
 
-export async function resolveConflict(keep) {            // 'server' | 'local'
+export async function resolveConflict(keep) {            // 'server' | 'local' | 'salir' | 'descartar'
+  if (keep === 'salir') { await logout(); set({ conflict: null }); return; }
+  if (keep === 'descartar') return pull({ reload: true, vaciar: true });
+  if (state.conflict?.otraCuenta) return;                  // nunca se sube la colección de otra cuenta
   if (keep === 'server') return pull({ reload: true });
   const user = state.me.user;
   setSync({ user, rev: 0, dirty: true });
