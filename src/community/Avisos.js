@@ -33,7 +33,7 @@ export function NotifBell({ variant = 'icon', onNavigate }) {
   if (!me) return null;
   const abrir = e => { e.stopPropagation(); setOpen(o => !o); if (!open) refreshNotifs(); };
   return (
-    <div className={'gv-bell-wrap ' + variant} ref={ref}>
+    <div className={'gv-bell-wrap v-' + variant} ref={ref}>
       {variant === 'icon'
         ? <button className={'gv-bell' + (n.sinLeer ? ' on' : '')} onClick={abrir} title={n.sinLeer ? `${n.sinLeer} aviso${n.sinLeer > 1 ? 's' : ''} sin leer` : 'Avisos'} aria-label="Avisos">
             {n.sinLeer ? <BellRing size={17}/> : <Bell size={17}/>}{n.sinLeer > 0 && <b>{n.sinLeer}</b>}

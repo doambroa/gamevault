@@ -323,15 +323,28 @@ const server = file => JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data
 
   // ── Zlotny ve lo que le han dejado, en el móvil y con el tema claro del sistema ──
   const p3 = await nuevo({ viewport: { width: 390, height: 844 }, colorScheme: 'light', deviceScaleFactor: 2, isMobile: true, hasTouch: true }); CUR.page = p3;
-  await check('Móvil con tema claro del sistema: la app sale en claro sin tocar nada', async () => {
+  await check('Móvil con el sistema en claro: la app sale en oscuro (lo de por defecto)', async () => {
     await entrar(p3, 'zlotny');
     await p3.getByText('Empezar desde cero').or(p3.getByRole('heading', { name: 'Inicio' })).first().waitFor({ timeout: 30000 });
-    assert(await p3.evaluate(() => document.documentElement.dataset.theme) === 'light', 'tema');
+    assert(await p3.evaluate(() => document.documentElement.dataset.theme) === 'dark', 'tema');
   });
   await check('Zlotny (sin colección) ve en Préstamos «Tengo de otros: Pikmin 4 de soiber»', async () => {
     await p3.getByRole('button', { name: /ver lo que tienen mis colegas/ }).click();
     await p3.locator('.lz-mios').getByText('Pikmin 4').waitFor({ timeout: 20000 });
     await shot('movil-prestamos', p3);
+  });
+  await check('Móvil: aviso de la primera vez sobre el tema (en «Más»); se va al abrir «Más» y al cambiar el tema', async () => {
+    const aviso = p3.locator('.theme-hint');
+    await aviso.getByText(/En «Más» tienes el interruptor de tema/).waitFor();
+    await shot('movil-aviso-tema', p3);
+    await p3.locator('.nav-more').click();
+    await p3.waitForTimeout(300);
+    assert(!(await aviso.isVisible()), 'el aviso no debe tapar el menú «Más»');
+    await p3.locator('.sidebar-footer .theme-switch').click();
+    assert(await p3.evaluate(() => document.documentElement.dataset.theme) === 'light', 'a claro');
+    await aviso.waitFor({ state: 'detached' });
+    await p3.locator('.sidebar-footer .theme-switch').click();
+    await p3.locator('.sidebar-scrim').click({ position: { x: 20, y: 20 } });     // tocar fuera del menú lo cierra
   });
   await check('Pedir: Zlotny pide a David «Super Mario RPG» desde la ficha del juego en Préstamos', async () => {
     await p3.getByPlaceholder('¿Qué juego buscas?').fill('super mario rpg');
@@ -371,7 +384,7 @@ const server = file => JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data
     await p3.reload();
     await p3.locator('.nav-more .nav-badge').waitFor({ timeout: 20000 });
     await p3.locator('.nav-more').click();
-    await p3.locator('.gv-bell-wrap.menu button').first().click();
+    await p3.locator('.gv-bell-wrap.v-menu button').first().click();
     const panel = p3.locator('.gv-avisos');
     await panel.getByText(/te recuerda que tienes su «Pikmin 4»/).waitFor({ timeout: 10000 });
     await panel.getByText(/te deja «Super Mario RPG»/).waitFor();

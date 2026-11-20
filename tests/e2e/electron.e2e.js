@@ -562,14 +562,21 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
     await modal.waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
     if (await modal.count()) await modal.locator('.modal-close, button[aria-label="Cerrar"]').first().click().catch(() => {});
   });
-  await check('Tema claro/oscuro: el botón de la barra de título cambia el tema y se recuerda', async () => {
+  await check('Tema: por defecto oscuro aunque el sistema esté en claro; aviso la primera vez; claro/oscuro/Auto se recuerdan', async () => {
     const theme = () => page.evaluate(() => document.documentElement.dataset.theme);
-    await page.evaluate(() => localStorage.removeItem('gv-theme'));   // partir de cero (el perfil de Electron se comparte entre ejecuciones)
+    await page.evaluate(() => { localStorage.removeItem('gv-theme'); localStorage.removeItem('gv-aviso-tema'); localStorage.removeItem('gv-aviso-tema-n'); sessionStorage.clear(); });   // partir de cero
+    await page.emulateMedia({ colorScheme: 'light' });                  // sistema en claro…
     await page.reload(); await page.getByRole('heading', { name: 'Inicio' }).waitFor({ timeout: 15000 });
-    const sis = await page.evaluate(() => matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
-    assert(await theme() === sis, 'por defecto debe seguir al sistema (' + sis + ')');
-    await page.locator('.sidebar-footer').getByText('como el sistema').waitFor();
-    if (sis === 'light') await page.locator('.titlebar .theme-icon').click();   // partir de oscuro
+    assert(await theme() === 'dark', 'por defecto debe ser oscuro');   // …pero la app sale en oscuro
+    const aviso = page.locator('.theme-hint');
+    await aviso.getByText('¿Prefieres la app en claro?').waitFor();
+    await page.waitForTimeout(500);   // fin de la animación
+    await shot('aviso-tema');
+    await aviso.getByRole('button', { name: 'Entendido' }).click();
+    await aviso.waitFor({ state: 'detached' });
+    await page.reload(); await page.getByRole('heading', { name: 'Inicio' }).waitFor({ timeout: 15000 });
+    await page.waitForTimeout(500);
+    assert(await aviso.count() === 0, 'el aviso no debe volver a salir');
     await page.locator('.titlebar .theme-icon').click();
     assert(await theme() === 'light', 'no cambió a claro');
     await page.waitForTimeout(600);   // fin del fundido
@@ -581,7 +588,14 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
     await page.locator('.sidebar-footer .theme-switch').click();
     assert(await theme() === 'dark', 'el interruptor lateral no vuelve a oscuro');
     await page.locator('.sidebar-footer .theme-auto').click();
-    assert(await theme() === sis && await page.evaluate(() => localStorage.getItem('gv-theme')) === null, '«Auto» vuelve al del sistema');
+    assert(await theme() === 'light' && await page.evaluate(() => localStorage.getItem('gv-theme')) === 'system', '«Auto» sigue al del sistema (claro)');
+    await page.locator('.sidebar-footer').getByText('como el sistema').waitFor();
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.waitForTimeout(300);
+    assert(await theme() === 'dark', 'en «Auto» cambia cuando cambia el sistema');
+    await page.locator('.sidebar-footer .theme-switch').click();      // vuelve a fijarlo a mano
+    await page.locator('.sidebar-footer .theme-switch').click();
+    assert(await theme() === 'dark' && await page.evaluate(() => localStorage.getItem('gv-theme')) === null, 'oscuro fijo = lo de por defecto');
   });
   await check('Borrar colección: aviso, casillas premarcadas, confirmar con BORRAR; borra sólo lo marcado', async () => {
     await page.evaluate(() => window.api.deseos.create({ nombre: 'Deseo E2E', plataforma: 'Switch' }));

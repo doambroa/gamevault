@@ -34,6 +34,12 @@ Las bases de datos de versiones anteriores se actualizan solas al abrir la 1.8 (
 
 ---
 
+## Novedades de la 2.3.1
+
+- El tema por defecto ahora es **oscuro** (antes seguía al del sistema). Con «Auto», junto al interruptor de tema, vuelve a seguir al del sistema.
+- La primera vez que alguien abre la app le sale un aviso de que puede cambiar a tema claro (en el ordenador, junto al interruptor; en el móvil, sobre «Más»). No tapa nada y deja de salir al pulsar «Entendido», al cambiar el tema o tras tres aperturas.
+- En el móvil, el menú «Más» se desplaza si no cabe en la pantalla, y la entrada «Avisos» ya no se sale del menú.
+
 ## Novedades de la 2.3 · Retos Switcherino
 
 Apartado nuevo en el menú, **Retos Switcherino**, con dos retos:

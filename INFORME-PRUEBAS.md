@@ -1,5 +1,16 @@
 # GameVault — Informe de pruebas y errores corregidos
 
+## Versión 2.3.1 (20-11-2026)
+
+Unitarias 46/46 · escritorio 41/41 · comunidad 37/37 · Android 16/16 · iPhone 9/9 · accesorios 8/8 · retos 28/28.
+
+Probado: con el sistema en claro la app sale en oscuro; aviso del tema la primera vez (ordenador y móvil), no vuelve tras «Entendido», se quita al cambiar el tema; claro/oscuro/Auto se recuerdan y «Auto» sigue los cambios del sistema.
+
+Errores encontrados y corregidos:
+1. En el móvil, la entrada «Avisos» del menú «Más» heredaba el estilo de los menús desplegables y se salía del menú, tapando la barra de abajo (venía de la 2.2).
+2. Con las entradas nuevas de Retos, el menú «Más» ya no cabía en pantallas de móvil: ahora se desplaza.
+3. La primera versión del aviso de tema tapaba lo que tenía debajo en el móvil y no dejaba pulsarlo: ahora solo se pueden pulsar sus botones.
+
 ## Versión 2.3 (20-11-2026) · Retos Switcherino
 
 Unitarias 46/46 · escritorio 41/41 · comunidad 36/36 · Android 16/16 · iPhone 9/9 · accesorios 8/8 · **retos 28/28 (prueba nueva, tres pasadas)**. Probado además en el servidor real: las playlists cargadas, el título de YouTube se obtiene desde el servidor, crear y borrar un reto.

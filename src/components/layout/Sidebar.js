@@ -7,7 +7,7 @@ import { NotifBell } from '../../community/Avisos';
 import SettingsModal from '../ui/index';
 import { Modal, Btn } from '../ui/index';
 import WipeModal from '../ui/WipeModal';
-import ThemeToggle from '../ui/ThemeToggle';
+import ThemeToggle, { ThemeHint } from '../ui/ThemeToggle';
 
 // movil:false → en el móvil va dentro de «Más» para que la barra inferior no se llene
 const NAV = [
@@ -124,6 +124,7 @@ export default function Sidebar() {
           <ThemeToggle/>
         </div>
       </aside>
+      <ThemeHint/>
 
       {/* Import confirm modal */}
       <Modal open={!!importState} onClose={() => setImportState(null)}

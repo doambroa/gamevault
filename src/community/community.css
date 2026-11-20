@@ -271,7 +271,7 @@ button.lz-mov-p:hover span{text-decoration:underline}
 .gv-bell.on{color:var(--gold);border-color:var(--gold)}
 .gv-bell b{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 5px;border-radius:99px;background:var(--accent);color:#fff;font-size:10.5px;display:flex;align-items:center;justify-content:center}
 .gv-avisos{position:absolute;z-index:950;top:calc(100% + 8px);left:0;width:360px;max-width:calc(100vw - 24px);background:var(--bg-2);border:1px solid var(--border);border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.45);overflow:hidden}
-.gv-bell-wrap.menu .gv-avisos{position:fixed;left:12px;right:12px;top:auto;bottom:calc(80px + env(safe-area-inset-bottom));width:auto}
+.gv-bell-wrap.v-menu .gv-avisos{position:fixed;left:12px;right:12px;top:auto;bottom:calc(80px + env(safe-area-inset-bottom));width:auto}
 .gv-avisos-h{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border)}
 .gv-avisos-h b{font-size:14px;color:var(--text-0)}
 .gv-avisos-list{max-height:min(420px,60vh);overflow-y:auto}
