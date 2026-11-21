@@ -18,6 +18,7 @@ export const CONSOLAS_CONOCIDAS = [
   { nombre:'Nintendo Switch',                 alias:['Switch','NS'],           marca:'Nintendo', tipo:'Híbrida',   anioEU:'2017', modelo:'HAC-001' },
   { nombre:'Nintendo Switch OLED',            alias:['Switch OLED'],           marca:'Nintendo', tipo:'Híbrida',   anioEU:'2021', modelo:'HEG-001' },
   { nombre:'Nintendo Switch Lite',            alias:['Switch Lite'],           marca:'Nintendo', tipo:'Portátil',  anioEU:'2019', modelo:'HDH-001' },
+  { nombre:'Nintendo Switch 2',               alias:['Switch 2','NS2'],        marca:'Nintendo', tipo:'Híbrida',   anioEU:'2025', modelo:'BEE-001' },
   { nombre:'Game Boy',                        alias:['GB'],                    marca:'Nintendo', tipo:'Portátil',  anioEU:'1990', modelo:'DMG-001' },
   { nombre:'Game Boy Color',                  alias:['GBC'],                   marca:'Nintendo', tipo:'Portátil',  anioEU:'1998', modelo:'CGB-001' },
   { nombre:'Game Boy Advance',                alias:['GBA'],                   marca:'Nintendo', tipo:'Portátil',  anioEU:'2001', modelo:'AGB-001' },
@@ -38,6 +39,7 @@ export const CONSOLAS_CONOCIDAS = [
   { nombre:'PlayStation 4 Pro',               alias:['PS4 Pro'],               marca:'Sony', tipo:'Sobremesa', anioEU:'2016', modelo:'CUH-7200' },
   { nombre:'PlayStation 5',                   alias:['PS5'],                   marca:'Sony', tipo:'Sobremesa', anioEU:'2020', modelo:'CFI-1216A' },
   { nombre:'PlayStation 5 Digital',           alias:['PS5 Digital'],           marca:'Sony', tipo:'Sobremesa', anioEU:'2020', modelo:'CFI-1216B' },
+  { nombre:'PlayStation 5 Pro',               alias:['PS5 Pro'],               marca:'Sony', tipo:'Sobremesa', anioEU:'2024', modelo:'CFI-7016' },
   { nombre:'PlayStation Portable',            alias:['PSP'],                   marca:'Sony', tipo:'Portátil',  anioEU:'2005', modelo:'PSP-1004' },
   { nombre:'PlayStation Vita',                alias:['PS Vita','PSVita'],      marca:'Sony', tipo:'Portátil',  anioEU:'2012', modelo:'PCH-1004' },
   // ── Sega ──────────────────────────────────────────────────────────────────

@@ -22,8 +22,20 @@ async function fetchRAWG(ep, params={}) {
   return r.json();
 }
 
-export const searchGames = (q, n=12) =>
-  fetchRAWG('games', {search:q, page_size:n}).then(d => d.results||[]);
+export const searchGames = (q, n=12, plataformaRawg=null) =>
+  fetchRAWG('games', {search:q, page_size:n, ...(plataformaRawg ? {platforms: plataformaRawg} : {})}).then(d => d.results||[]);
+
+// Plataformas de RAWG (api.rawg.io/api/platforms) para cada consola del catálogo (clave = imagen de data/consolas).
+// RAWG no tiene «Switch 2»: sus juegos están dentro de «Nintendo Switch», así que se busca ahí.
+export const PLATAFORMA_RAWG = {
+  'pc': 4, 'playstation-5': 187, 'playstation-4': 18, 'playstation-3': 16, 'playstation-2': 15, 'playstation': 27,
+  'ps-vita': 19, 'psp': 17, 'xbox-one': 1, 'xbox-series-x': 186, 'xbox-series-s': 186, 'xbox-360': 14, 'xbox': 80,
+  'switch': 7, 'switch-2': 7, 'wii-u': 10, 'wii': 11, 'gamecube': 105, 'nintendo-64': 83, 'snes': 79, 'nes': 49,
+  'nintendo-3ds': 8, 'nintendo-ds': 9, 'game-boy-advance': 24, 'game-boy-color': 43, 'game-boy': 26,
+  'mega-drive': 167, 'saturn': 107, 'mega-cd': 119, '32x': 117, 'master-system': 74, 'dreamcast': 106, 'game-gear': 77,
+  '3do': 111, 'atari-jaguar': 112, 'atari-lynx': 46, 'atari-2600': 23, 'amiga': 166, 'amiga-cd32': 166, 'commodore-64': 166,
+  'neo-geo-aes': 12, 'neo-geo-cd': 12,
+};
 
 export const getGameDetails     = id => fetchRAWG(`games/${id}`);
 export const getGameScreenshots = id => fetchRAWG(`games/${id}/screenshots`).then(d=>(d.results||[]).map(s=>s.image));

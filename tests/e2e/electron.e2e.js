@@ -178,6 +178,48 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
     await modal.getByRole('button', { name: /Crear juego/ }).click();
     await page.locator('td.td-name', { hasText: 'Mario Kart 8 Deluxe: Booster Course' }).waitFor();
   });
+  await check('Nueva consola: al escribir «Switch 2» la sugiere (y también Switch, aparte)', async () => {
+    await page.getByRole('button', { name: 'Consolas', exact: true }).click();
+    await page.getByRole('button', { name: /Nueva plataforma/ }).click();
+    const modal = page.locator('.modal-box');
+    await modal.getByPlaceholder('PlayStation 5').fill('switch');
+    await modal.locator('.autocomplete-item', { hasText: 'Nintendo Switch 2' }).waitFor({ timeout: 5000 });
+    await modal.locator('.autocomplete-item .ac-nombre', { hasText: /^Nintendo Switch$/ }).waitFor();
+    await modal.getByPlaceholder('PlayStation 5').fill('Switch 2');
+    await modal.locator('.autocomplete-item', { hasText: 'Nintendo Switch 2' }).waitFor();
+    await modal.getByRole('button', { name: 'Cancelar' }).click();
+    await page.getByRole('button', { name: 'Juegos', exact: true }).click();
+  });
+  await check('Formulario de juego: con la consola elegida, RAWG busca solo juegos de esa consola (y si no hay, de todas)', async () => {
+    // se interceptan las llamadas a RAWG para ver qué se pide y devolver resultados de prueba
+    await page.evaluate(() => {
+      window.__rawg = [];
+      const orig = window.__fetchOrig || (window.__fetchOrig = window.fetch);
+      window.fetch = async (u, o) => {
+        const url = String(u);
+        if (!url.includes('api.rawg.io/api/games?')) return orig(u, o);
+        window.__rawg.push(url);
+        const conPlat = url.includes('platforms=');
+        const res = url.includes('search=Nada') && conPlat ? [] : [{ id: 1, name: conPlat ? 'Super Mario 64' : 'Juego de cualquier consola', background_image: 'https://media.rawg.io/x.jpg' }];
+        return new Response(JSON.stringify({ results: res }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      };
+    });
+    await page.getByRole('button', { name: /Nuevo juego/ }).click();
+    const modal = page.locator('.modal-box');
+    await modal.getByText('Elige antes la plataforma').waitFor();
+    await modal.locator('select').first().selectOption({ label: 'Nintendo 64' });
+    await modal.getByPlaceholder('Escribe el nombre del juego…').fill('Mario');
+    await modal.locator('.sug-dropdown').getByText('Super Mario 64').waitFor({ timeout: 5000 });
+    await modal.getByText('Buscando en RAWG solo juegos de Nintendo 64').waitFor();
+    const urls = await page.evaluate(() => window.__rawg);
+    assert(urls.some(u => /platforms=83(&|$)/.test(u)), urls.join(' | '));
+    await modal.getByPlaceholder('Escribe el nombre del juego…').fill('Nada parecido');
+    await modal.locator('.sug-aviso', { hasText: 'No hay nada de Nintendo 64 con ese nombre' }).waitFor({ timeout: 5000 });
+    await modal.locator('.sug-dropdown').getByText('Juego de cualquier consola').waitFor();
+    await shot('rawg-por-consola');
+    await modal.getByRole('button', { name: 'Cancelar' }).click();
+    await page.evaluate(() => { window.fetch = window.__fetchOrig; });
+  });
   await check('La columna "Duración" de la tabla se rellena sola en segundo plano', async () => {
     const row = page.locator('tr', { has: page.locator('td.td-name', { hasText: 'Mario Kart 8 Deluxe: Booster Course' }) });
     await row.getByText('12h / 20h / 50h').waitFor({ timeout: 15000 });

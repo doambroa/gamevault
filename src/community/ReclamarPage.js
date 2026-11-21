@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Gift, Check, Copy, LogOut, ShieldAlert } from 'lucide-react';
 import { Btn, SkeletonList } from '../components/ui/index';
-import { useAccount, claimInfo, claimProfile, logout } from './account';
+import { useAccount, claimInfo, claimProfile, logout, guardarReclamo } from './account';
 import { Avatar, LoginForm } from './ui';
 
 /* Enlace que el administrador manda a cada colega: «esta colección de la tabla es tuya».
@@ -19,7 +19,17 @@ export default function ReclamarPage() {
   const [copiado, setCopiado] = useState(false);
   const si = async () => {
     if (!info.esPara && !window.confirm(`¿Seguro que eres ${info.display}? Sus ${info.juegos} juegos pasarán a la colección de la cuenta «${me.display || me.user}».`)) return;
-    setBusy(true); setErr(''); try { await claimProfile(info.id, code); } catch (e) { setErr(e.message); setBusy(false); }
+    setBusy(true); setErr('');
+    // Sin colección todavía en este aparato: que pase por la bienvenida (elige sus consolas) y allí se suman
+    let primera = false;
+    try { primera = await window.api?.app?.isFirstRun?.(); } catch {}
+    if (primera) {
+      guardarReclamo({ id: info.id, code, display: info.display, juegos: info.juegos, plataformas: info.plataformas, consolas: info.consolas, titulos: info.titulos, para: me.user });
+      window.location.hash = '#/';
+      window.location.reload();
+      return;
+    }
+    try { await claimProfile(info.id, code); } catch (e) { setErr(e.message); setBusy(false); }
   };
   const salir = async () => { await logout(); };
   const copiar = async () => { try { await navigator.clipboard.writeText(window.location.href); setCopiado(true); setTimeout(() => setCopiado(false), 2000); } catch {} };

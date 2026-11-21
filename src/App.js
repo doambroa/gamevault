@@ -18,7 +18,7 @@ import PrestamosPage    from './community/PrestamosPage';
 import ReclamarPage     from './community/ReclamarPage';
 import PilaPage         from './pages/Pila/PilaPage';
 import RetosPage        from './retos/RetosPage';
-import { initAccount, useAccount, IS_APP } from './community/account';
+import { initAccount, useAccount, IS_APP, reclamoGuardado, reclamarSinRecargar, olvidarReclamo } from './community/account';
 import { LoginScreen, ConflictModal, RemoteToast, ClaimBanner, AccountModal } from './community/ui';
 // Si se entra con un enlace a los retos (p. ej. el que se manda al grupo), se vuelve ahí aunque no tenga colección
 const HASH_INICIAL = typeof window !== 'undefined' ? window.location.hash || '' : '';
@@ -73,14 +73,14 @@ export default function App() {
 
   if (firstRun) return (
     <div className="shell">
-      <ClaimBanner/>
+      {/* aquí no va el aviso «¿Eres …?»: la bienvenida ya dice lo que tiene apuntado y lo suma al terminar */}
       {isDesktop && <Titlebar/>}
       <InstallHint/>
       {acc.available && !acc.me && (
         <button className="ob-cuenta" onClick={() => setCuentaOb(true)}>¿Ya tienes cuenta? <b>Entra</b> y te traemos tu colección</button>
       )}
       {acc.me && (
-        <button className="ob-cuenta" onClick={async () => { try { await api.app.completeOnboarding(); } catch {} window.location.hash = HASH_INICIAL.startsWith('#/retos') ? HASH_INICIAL : '#/prestamos'; setFirstRun(false); }}>
+        <button className="ob-cuenta" onClick={async () => { const r = reclamoGuardado(); if (r) { try { await reclamarSinRecargar(r.id, r.code); } catch {} olvidarReclamo(); } try { await api.app.completeOnboarding(); } catch {} window.location.hash = HASH_INICIAL.startsWith('#/retos') ? HASH_INICIAL : '#/prestamos'; setFirstRun(false); }}>
           Ahora no: <b>{HASH_INICIAL.startsWith('#/retos') ? 'ir a los retos de Switcherino' : 'ver lo que tienen mis colegas o los retos'}</b>
         </button>
       )}

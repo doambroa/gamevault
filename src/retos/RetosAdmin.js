@@ -147,7 +147,7 @@ export function PorraEditor({ po, onClose, onSaved }) {
     const q = (/interpret|performance/i.test(f.categorias[ci].nombre) && n.sub) ? n.sub : n.n;
     setBuscando(ci + ':' + ni);
     try {
-      const r = (await searchGames(q, 6))?.results || [];
+      const r = (await searchGames(q, 6)) || [];
       const imgs = r.map(g => g.background_image).filter(Boolean);
       if (!imgs.length) return false;
       const k = siguiente ? (imgs.indexOf(n.img) + 1) % imgs.length : 0;

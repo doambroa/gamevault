@@ -1,7 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { findPlatform } from '../../utils/platformMatch';
-import { Download, ArrowRight, Check, Gamepad2, Loader } from 'lucide-react';
-import { CONSOLAS, MARCAS_PRINCIPALES, imagenDeConsola } from '../../data/consolas';
+import { Download, ArrowRight, ArrowLeft, Check, Gamepad2, Loader, Sparkles, Trophy, Table2 } from 'lucide-react';
+import { CONSOLAS, MARCAS_PRINCIPALES, imagenDeConsola, claveConsola } from '../../data/consolas';
+import { useAccount, misCreditos, reclamoGuardado, olvidarReclamo, reclamarSinRecargar } from '../../community/account';
+import { getGameDetails } from '../../utils/rawg';
+import { thumb } from '../../utils/imgSrc';
 import './Onboarding.css';
 
 const api = window.api;
@@ -24,7 +27,31 @@ function Avatar({ c }) {
   );
 }
 
+const claveDe = c => c.img || claveConsola(c.nombre);
+const normT = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+
+/* «Ya tienes juegos apuntados»: perfiles de la tabla de préstamos a tu nombre (sugeridos por el administrador
+ * o del enlace que has aceptado) y lo que tienes en Créditos Finales. Las consolas de la tabla salen marcadas
+ * y sus juegos se añaden solos; los de Créditos Finales se eligen en un paso aparte (allí no consta la consola). */
+function useApuntados() {
+  const { me } = useAccount();
+  const [cf, setCf] = useState(null);
+  const perfiles = useMemo(() => {
+    if (!me) return [];
+    const l = (me.claimable || []).map(p => ({ ...p, code: '' }));
+    const r = reclamoGuardado();
+    if (r && !l.some(p => p.id === r.id)) l.push(r);
+    return l;
+  }, [me]);
+  useEffect(() => {
+    if (!me || me.creditos === false) { setCf([]); return; }
+    misCreditos().then(r => setCf(r.juegos || [])).catch(() => setCf([]));
+  }, [me]);
+  return { me, perfiles, cf: cf || [], cargando: !!me && cf === null };
+}
+
 export default function OnboardingPage({ onComplete }) {
+  const ap = useApuntados();
   const [step,     setStep]     = useState('welcome');
   const [selected, setSelected] = useState(new Set());
   const [filtro,   setFiltro]   = useState('Todas');
@@ -34,6 +61,23 @@ export default function OnboardingPage({ onComplete }) {
   const [existentes, setExistentes] = useState([]);
   useEffect(() => { api?.plataformas.getAll().then(setExistentes).catch(() => {}); }, []);
   const yaLaTienes = nombre => !!findPlatform(nombre, existentes);
+  // consolas que llegan con la tabla → marcadas (y fijas) en la lista
+  const deTabla = useMemo(() => {
+    const m = new Map();
+    for (const p of ap.perfiles) for (const c of p.consolas || []) { const k = claveConsola(c.n); m.set(k, (m.get(k) || 0) + (c.j || 0)); }
+    return m;
+  }, [ap.perfiles]);
+  const titulosTabla = useMemo(() => new Set(ap.perfiles.flatMap(p => (p.titulos || []).map(normT))), [ap.perfiles]);
+  const juegosTabla = ap.perfiles.reduce((s, p) => s + (p.juegos || 0), 0);
+  const cfOfrecibles = useMemo(() => {
+    const vistos = new Set();
+    return ap.cf.filter(g => { const k = normT(g.t); if (!k || vistos.has(k) || titulosTabla.has(k)) return false; vistos.add(k); return true; });
+  }, [ap.cf, titulosTabla]);
+  const esDeTabla = c => deTabla.has(claveDe(c));
+  // Juegos de Créditos Finales: consola elegida para cada uno ('' = no lo tengo)
+  const [asignados, setAsignados] = useState({});
+  const [plataformasRawg, setPlataformasRawg] = useState({});
+  const [buscandoRawg, setBuscandoRawg] = useState(false);
 
   const handleImport = async () => {
     // En el onboarding no hay datos que perder, así que importamos directamente
@@ -51,16 +95,52 @@ export default function OnboardingPage({ onComplete }) {
     }
   };
 
-  const toggle = nombre => !yaLaTienes(nombre) && setSelected(s => {
+  const toggle = nombre => !yaLaTienes(nombre) && !esDeTabla(TODAS_LAS_CONSOLAS.find(c => c.nombre === nombre) || { nombre }) && setSelected(s => {
     const next = new Set(s);
     next.has(nombre) ? next.delete(nombre) : next.add(nombre);
     return next;
   });
 
-  // Guardar las consolas elegidas, con su imagen por defecto (incluida en la app)
+  // Consolas que tendrá la colección: las elegidas + las de la tabla
+  const consolasFinales = useMemo(() => TODAS_LAS_CONSOLAS.filter(c => selected.has(c.nombre) || esDeTabla(c)), [selected, deTabla]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Paso de Créditos Finales: en qué consolas salió cada juego (RAWG) para proponer la suya
+  const irACreditos = async () => {
+    setStep('creditos');
+    const claves = new Set(consolasFinales.map(claveDe));
+    const propuesta = {};
+    setBuscandoRawg(true);
+    const pend = cfOfrecibles.filter(g => g.sid && String(g.sid).startsWith('rawg:') && !plataformasRawg[g.sid]);
+    const encontrados = { ...plataformasRawg };
+    for (let i = 0; i < pend.length; i += 5) {
+      await Promise.all(pend.slice(i, i + 5).map(async g => {
+        try { const d = await getGameDetails(String(g.sid).slice(5)); encontrados[g.sid] = (d.platforms || []).map(x => x.platform?.name).filter(Boolean); } catch { encontrados[g.sid] = []; }
+      }));
+    }
+    setPlataformasRawg(encontrados);
+    for (const g of cfOfrecibles) {
+      if (asignados[g.t] !== undefined) { propuesta[g.t] = asignados[g.t]; continue; }
+      const enRawg = (encontrados[g.sid] || []).map(claveConsola).filter(k => claves.has(k));
+      const c = consolasFinales.find(x => claveDe(x) === enRawg[0]);
+      propuesta[g.t] = c ? c.nombre : '';
+    }
+    setAsignados(propuesta);
+    setBuscandoRawg(false);
+  };
+
+  // Guardar: primero los perfiles de la tabla (se suman en el servidor), luego las consolas elegidas
+  // con su imagen por defecto (incluida en la app) y por último los juegos de Créditos Finales marcados
   const handleFinish = async () => {
     setSaving(true);
-    const consolasSeleccionadas = TODAS_LAS_CONSOLAS.filter(c => selected.has(c.nombre) && !yaLaTienes(c.nombre));
+    for (const p of ap.perfiles) {
+      setSaveMsg(`Añadiendo los ${p.juegos} juegos de la tabla de préstamos…`);
+      try { await reclamarSinRecargar(p.id, p.code || ''); } catch (e) { console.warn('Reclamar', e); }
+    }
+    olvidarReclamo();
+    let ya = existentes;
+    try { ya = await api.plataformas.getAll(); setExistentes(ya); } catch {}
+    const tiene = nombre => !!findPlatform(nombre, ya);
+    const consolasSeleccionadas = TODAS_LAS_CONSOLAS.filter(c => selected.has(c.nombre) && !tiene(c.nombre) && !esDeTabla(c));
     let done = 0;
     for (const c of consolasSeleccionadas) {
       done++;
@@ -74,6 +154,19 @@ export default function OnboardingPage({ onComplete }) {
         unidadesVendidas: c.unidadesVendidas||'',
         comentarios: '', imagenes: imagenDeConsola(c) ? [imagenDeConsola(c)] : [],
       });
+    }
+    const elegidos = cfOfrecibles.filter(g => asignados[g.t]);
+    if (elegidos.length) {
+      let plats = [];
+      try { plats = await api.plataformas.getAll(); } catch {}
+      let n = 0;
+      for (const g of elegidos) {
+        n++;
+        setSaveMsg(`Añadiendo ${n}/${elegidos.length} de Créditos Finales: ${g.t}…`);
+        const p = findPlatform(asignados[g.t], plats);
+        if (!p) continue;
+        try { await api.juegos.create({ plataformaId: p.id, nombre: g.t, imagenes: g.i ? [g.i] : [], comentarios: '' }); } catch (e) { console.warn('Juego de Créditos Finales', g.t, e); }
+      }
     }
     await api.app.completeOnboarding();
     onComplete();
@@ -124,6 +217,47 @@ export default function OnboardingPage({ onComplete }) {
     </div>
   );
 
+  // ── Juegos de Créditos Finales ────────────────────────────────────────────
+  if (step === 'creditos') {
+    const n = cfOfrecibles.filter(g => asignados[g.t]).length;
+    const todas = consolasFinales;
+    return (
+      <div className="ob-screen">
+        <div className="ob-select-header">
+          <div>
+            <h2 className="ob-select-title">Tus juegos de Créditos Finales</h2>
+            <p className="ob-select-sub">
+              Estos te los has pasado o los estás jugando. Elige en qué consola tienes cada uno; los que no tengas (prestados, de suscripción…) déjalos en «No lo tengo».
+              {buscandoRawg && <> <Loader size={12} className="spin"/> Mirando en qué consolas salió cada uno…</>}
+            </p>
+          </div>
+          <div className="ob-cf-acc">
+            <button className="ob-back-btn" onClick={() => setStep('select')}><ArrowLeft size={16}/> Consolas</button>
+            <button className="ob-finish-btn" onClick={handleFinish} disabled={saving || buscandoRawg}>
+              {n ? `Añadir ${n} juego${n !== 1 ? 's' : ''} y terminar` : 'Terminar sin estos'} <ArrowRight size={16}/>
+            </button>
+          </div>
+        </div>
+        {todas.length === 0 && <p className="ob-cf-aviso">No has elegido ninguna consola: vuelve atrás y marca en cuáles juegas para poder añadirlos.</p>}
+        <div className="ob-cf-lista">
+          {cfOfrecibles.map(g => {
+            const v = asignados[g.t] ?? '';
+            return (
+              <div key={g.t} className={'ob-cf' + (v ? ' on' : '')}>
+                <span className="ob-cf-img">{g.i ? <img src={thumb(g.i, 200)} alt="" loading="lazy"/> : <Gamepad2 size={18}/>}</span>
+                <span className="ob-cf-t"><b>{g.t}</b><small>{g.e === 'jugando' ? 'Jugando' : 'Terminado'}{g.y ? ' en ' + g.y : ''}{plataformasRawg[g.sid]?.length ? ' · salió en ' + plataformasRawg[g.sid].slice(0, 4).join(', ') : ''}</small></span>
+                <select className="field-input field-select" value={v} onChange={e => setAsignados(a => ({ ...a, [g.t]: e.target.value }))} aria-label={'Consola de ' + g.t}>
+                  <option value="">No lo tengo</option>
+                  {todas.map(c => <option key={c.nombre} value={c.nombre}>{c.nombre}</option>)}
+                </select>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   // ── Console selector ──────────────────────────────────────────────────────
   return (
     <div className="ob-screen">
@@ -134,14 +268,35 @@ export default function OnboardingPage({ onComplete }) {
             Selecciona todas las que quieras. Luego puedes cambiar la imagen de cada una.
           </p>
         </div>
-        <button className={'ob-finish-btn' + (selected.size===0?' ob-finish-empty':'')}
-          onClick={handleFinish} disabled={saving}>
-          {selected.size===0
-            ? 'Continuar sin consolas'
-            : `Añadir ${selected.size} consola${selected.size!==1?'s':''}`}
-          <ArrowRight size={16}/>
-        </button>
+        {(() => {
+          const total = consolasFinales.length;
+          const sigue = cfOfrecibles.length > 0;
+          return (
+            <button className={'ob-finish-btn' + (total===0?' ob-finish-empty':'')}
+              onClick={sigue ? irACreditos : handleFinish} disabled={saving || ap.cargando}>
+              {ap.cargando ? 'Un momento…'
+                : sigue ? `Siguiente: tus juegos de Créditos Finales`
+                : total===0 ? 'Continuar sin consolas'
+                : `Añadir ${total} consola${total!==1?'s':''}`}
+              <ArrowRight size={16}/>
+            </button>
+          );
+        })()}
       </div>
+
+      {(juegosTabla > 0 || cfOfrecibles.length > 0) && (
+        <div className="ob-apuntados" role="note">
+          <Sparkles size={20} className="ob-apuntados-ico"/>
+          <div>
+            <b>¡Oye{ap.me?.display ? ', ' + ap.me.display : ''}! Ya tienes juegos apuntados, así que esos se te dan de alta solos:</b>
+            <ul>
+              {juegosTabla > 0 && <li><Table2 size={14}/> <span><b>{juegosTabla} juego{juegosTabla !== 1 ? 's' : ''}</b> en la tabla de préstamos ({[...new Set(ap.perfiles.flatMap(p => (p.consolas || []).map(c => c.n)))].join(', ')}). Sus consolas ya están marcadas abajo.</span></li>}
+              {cfOfrecibles.length > 0 && <li><Trophy size={14}/> <span><b>{cfOfrecibles.length} juego{cfOfrecibles.length !== 1 ? 's' : ''}</b> en Créditos Finales. En el siguiente paso eliges en qué consola tienes cada uno (allí no consta).</span></li>}
+            </ul>
+            <small>Marca también el resto de consolas que tengas.</small>
+          </div>
+        </div>
+      )}
 
       <div className="ob-marcas">
         {MARCAS.map(m => (
@@ -153,12 +308,14 @@ export default function OnboardingPage({ onComplete }) {
 
       <div className="ob-grid">
         {consolas.map(c => {
-          const sel = selected.has(c.nombre);
-          const tiene = yaLaTienes(c.nombre);
+          const tabla = esDeTabla(c);
+          const sel = selected.has(c.nombre) || tabla;
+          const tiene = !tabla && yaLaTienes(c.nombre);
           return (
             <div key={c.nombre} className={'ob-consola'+(sel?' ob-consola-sel':'')+(tiene?' ob-consola-tiene':'')}
-              onClick={()=>toggle(c.nombre)} title={tiene ? 'Ya está en tu colección' : undefined}>
+              onClick={()=>toggle(c.nombre)} title={tiene ? 'Ya está en tu colección' : tabla ? `Viene de la tabla de préstamos con ${deTabla.get(claveDe(c))} juego(s)` : undefined}>
               {tiene && <div className="ob-tiene">Ya la tienes</div>}
+              {tabla && <div className="ob-tiene ob-tabla">{deTabla.get(claveDe(c))} de la tabla</div>}
               {sel && <div className="ob-check"><Check size={16}/></div>}
               <Avatar c={c}/>
               <div className="ob-consola-info">

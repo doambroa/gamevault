@@ -99,7 +99,7 @@ const ALIAS = {
   ps2:'playstation-2', ps3:'playstation-3', ps4:'playstation-4', playstation4pro:'playstation-4', ps4pro:'playstation-4',
   ps5:'playstation-5', playstation5digital:'playstation-5', playstationportable:'psp', playstationvita:'ps-vita', vita:'ps-vita',
   genesis:'mega-drive', megadrivegenesis:'mega-drive', cd:'mega-cd', segacd:'mega-cd', megacd:'mega-cd',
-  xboxonex:'xbox-one', xboxones:'xbox-one', xboxseriesxs:'xbox-series-x',
+  xboxonex:'xbox-one', xboxones:'xbox-one', xboxseriesxs:'xbox-series-x', xboxseriessx:'xbox-series-x', ns2:'switch-2', playstation5pro:'playstation-5', ps5pro:'playstation-5',
   pc:'pc', windows:'pc', amiga500:'amiga', amiga1200:'amiga', commodoreamiga:'amiga', cd32:'amiga-cd32',
   spectrum:'zx-spectrum', cpc:'amstrad-cpc', turbografx16:'pc-engine', turbografx:'pc-engine',
   neogeo:'neo-geo-aes', aes:'neo-geo-aes', ngpc:'neo-geo-pocket-color',

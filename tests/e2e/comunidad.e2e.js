@@ -34,7 +34,10 @@ file_put_contents($argv[1].'/users.json', json_encode($u));
 $g = ['version'=>1,'years'=>[
   '2025'=>['games'=>[['id'=>'a','title'=>'Metroid Dread','rating'=>5,'hours'=>11,'comment'=>'Una joya','date'=>'2025-03-02','song'=>['title'=>'Theme']]],'lists'=>['enCurso'=>[],'pendientes'=>[],'abandonados'=>[],'retomar'=>[]]],
   date('Y')=>['games'=>[['id'=>'b','title'=>'Super Mario Bros. Wonder','rating'=>4.5,'hours'=>14,'date'=>date('Y').'-01-10'],['id'=>'c','title'=>'Pikmin 4','rating'=>4,'hours'=>20,'date'=>date('Y').'-02-10']],'lists'=>['enCurso'=>[['title'=>'Sea of Stars']],'pendientes'=>[],'abandonados'=>[],'retomar'=>[]]]]];
-file_put_contents($argv[1].'/u_soiber.json', json_encode($g));`, path.join(SRV, 'creditos/data')]);
+file_put_contents($argv[1].'/u_soiber.json', json_encode($g));
+$d = ['version'=>1,'years'=>['2026'=>['games'=>[['id'=>'d1','title'=>'ABZÛ','date'=>'2026-01-02'],['id'=>'d2','title'=>'Hollow Knight','date'=>'2026-02-02','image'=>'https://media.rawg.io/media/games/4cf/4cfc6b7f1850590a4634b08bfab308ab.jpg'],['id'=>'d3','title'=>'Astro Bot','date'=>'2026-03-02']],
+  'lists'=>['enCurso'=>[['title'=>'Metaphor: ReFantazio']],'pendientes'=>[['title'=>'Un pendiente']],'abandonados'=>[],'retomar'=>[]]]]];
+file_put_contents($argv[1].'/u_daconstenla.json', json_encode($d));`, path.join(SRV, 'creditos/data')]);
 const php = spawn('php', ['-S', `127.0.0.1:${PORT}`, '-t', SRV], { stdio: 'ignore' });
 const server = file => JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data', file), 'utf8'));
 
@@ -294,16 +297,49 @@ const server = file => JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data
 
   // ── Otra persona: David reclama lo suyo ──
   const p2 = await nuevo(); CUR.page = p2;
-  await check('daconstenla entra y le sale «¿Eres David Constenla?»; al aceptar, los 42 juegos pasan a ser suyos', async () => {
+  await check('David entra sin colección: la bienvenida le avisa de lo que ya tiene apuntado (tabla y Créditos Finales) con sus consolas marcadas', async () => {
     await entrar(p2, 'daconstenla');
-    await p2.getByRole('heading', { name: 'Inicio' }).or(p2.getByText('Empezar desde cero')).first().waitFor({ timeout: 30000 });
-    await p2.locator('.gv-claim').getByText('¿Eres David Constenla?').waitFor({ timeout: 15000 });
-    await shot('reclamar', p2);
-    await p2.locator('.gv-claim').getByRole('button', { name: /Sí, son míos/ }).click();
-    await p2.locator('.gcard').first().waitFor({ timeout: 30000 });
+    await p2.getByText('Empezar desde cero').waitFor({ timeout: 30000 });
+    assert(await p2.locator('.gv-claim').count() === 0, 'ya no sale el aviso que lo sumaba de golpe');
+    await p2.getByText('Empezar desde cero').click();
+    const aviso = p2.locator('.ob-apuntados');
+    await aviso.getByText(/Ya tienes juegos apuntados/).waitFor({ timeout: 15000 });
+    await aviso.getByText(/42 juegos/).waitFor();
+    await aviso.getByText(/en la tabla de préstamos \(Nintendo Switch, Nintendo Switch 2\)/).waitFor();
+    await aviso.getByText(/3 juegos/).waitFor();                     // Hollow Knight, Astro Bot y Metaphor (ABZÛ ya está en la tabla; el pendiente no cuenta)
+    for (const n of ['Switch', 'Switch 2']) {
+      const card = p2.locator('.ob-consola', { has: p2.locator('.ob-consola-nombre', { hasText: new RegExp('^' + n + '$') }) });
+      assert(await card.evaluate(e => e.classList.contains('ob-consola-sel')), n + ' marcada');
+      await card.locator('.ob-tabla').waitFor();
+      await card.click();                                              // no se puede desmarcar
+      assert(await card.evaluate(e => e.classList.contains('ob-consola-sel')), n + ' sigue marcada');
+    }
+    await p2.locator('.ob-consola', { hasText: 'PlayStation 5' }).first().click();
+    await shot('bienvenida-apuntados', p2);
+  });
+  await check('Paso de Créditos Finales: elige en qué consola tiene cada uno; al terminar se suman la tabla, las consolas y esos juegos', async () => {
+    await p2.getByRole('button', { name: /Siguiente: tus juegos de Créditos Finales/ }).click();
+    await p2.getByRole('heading', { name: 'Tus juegos de Créditos Finales' }).waitFor();
+    assert(await p2.locator('.ob-cf').count() === 3, 'juegos: ' + await p2.locator('.ob-cf').count());
+    await p2.locator('.ob-finish-btn:not([disabled])').waitFor({ timeout: 20000 });
+    await p2.locator('.ob-cf', { hasText: 'Hollow Knight' }).locator('select').selectOption('Switch');
+    await p2.locator('.ob-cf', { hasText: 'Astro Bot' }).locator('select').selectOption('PlayStation 5');
+    await p2.locator('.ob-cf', { hasText: 'Metaphor' }).locator('select').selectOption('');
+    await shot('bienvenida-creditos', p2);
+    await p2.getByRole('button', { name: /Añadir 2 juegos y terminar/ }).click();
+    await p2.locator('.sidebar').waitFor({ timeout: 40000 });
+    await p2.waitForTimeout(1500);
     const n = await p2.evaluate(() => window.api.io.counts());
-    assert(n.juegos === 42, JSON.stringify(n));
+    assert(n.juegos === 44 && n.plataformas === 3, JSON.stringify(n));
+    const js = await p2.evaluate(() => Promise.all([window.api.juegos.getAll({}), window.api.plataformas.getAll()]));
+    const pl = id => js[1].find(p => p.id === id)?.nombre;
+    assert(pl(js[0].find(j => j.nombre === 'Hollow Knight').plataformaId) === 'Nintendo Switch', 'Hollow Knight en la Switch de la tabla');
+    assert(pl(js[0].find(j => j.nombre === 'Astro Bot').plataformaId) === 'PlayStation 5', 'Astro Bot en PS5');
+    assert(!js[0].some(j => j.nombre.startsWith('Metaphor')), 'Metaphor no lo tiene');
+    assert(js[0].filter(j => j.nombre === 'ABZÛ').length === 1, 'ABZÛ no se repite');
     assert(!JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data/pending.json'))).hasOwnProperty('~david-constenla'), 'sigue pendiente');
+    for (let i = 0; i < 40 && (!fs.existsSync(path.join(SRV, 'gamevault/data/c_daconstenla.json')) || server('c_daconstenla.json').data.juegos.length !== 44); i++) await p2.waitForTimeout(500);
+    assert(server('c_daconstenla.json').data.juegos.length === 44, 'subido a su cuenta: ' + server('c_daconstenla.json').data.juegos.length);
   });
   await check('David ve en «He prestado» su Mario Party Superstars que tiene soiber', async () => {
     await p2.locator('.nav-item', { hasText: 'Préstamos' }).click();
@@ -481,6 +517,28 @@ const server = file => JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data
     assert(server('c_soiber.json').data.juegos.some(j => j.nombre === 'Otro juego'), 'no se subió la de este dispositivo');
   });
 
+  await check('Enlace de Andrés aceptado con una cuenta nueva: pasa por la bienvenida con sus consolas marcadas y al terminar tiene sus 52 juegos', async () => {
+    execFileSync('php', ['-r', `$f=$argv[1]; $u=json_decode(file_get_contents($f),true); $u['andresv']=['hash'=>password_hash('prueba1',PASSWORD_DEFAULT),'display'=>'Andrés','created'=>'2026-11-21','public'=>false]; file_put_contents($f,json_encode($u));`, path.join(SRV, 'creditos/data/users.json')]);
+    const code = JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data/pending.json')))['~andres-vieira'].code;
+    const pa = await nuevo(); CUR.page = pa;
+    pa.on('dialog', d => d.accept());
+    await pa.goto(URL0 + '#/reclamar/andres-vieira/' + code);
+    await pa.locator('input[autocomplete=username]').fill('andresv');
+    await pa.locator('input[type=password]').fill('prueba1');
+    await pa.locator('form button[type=submit]').first().click();
+    await pa.getByRole('button', { name: 'Sí, soy Andrés Vieira' }).click({ timeout: 20000 });
+    await pa.getByText('Empezar desde cero').click({ timeout: 30000 });
+    await pa.locator('.ob-apuntados').getByText(/52 juegos/).waitFor({ timeout: 15000 });
+    assert(JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data/pending.json')))['~andres-vieira'], 'aún no se ha sumado');
+    await pa.getByRole('button', { name: /Añadir 2 consolas/ }).click();
+    await pa.locator('.sidebar').waitFor({ timeout: 40000 });
+    await pa.waitForTimeout(1500);
+    const n = await pa.evaluate(() => window.api.io.counts());
+    assert(n.juegos === 52 && n.plataformas === 2, JSON.stringify(n));
+    assert(!JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data/pending.json'))).hasOwnProperty('~andres-vieira'), 'sigue pendiente');
+    await pa.close(); CUR.page = page;
+  });
+
   // ── Mismo aparato, otra cuenta: las colecciones nunca se mezclan ──
   const salirYEntrar = async user => {
     await page.evaluate(() => fetch('api.php?action=logout', { method: 'POST', headers: { 'X-GV': '1', 'Content-Type': 'application/json' }, body: '{}' }));
@@ -507,6 +565,8 @@ const server = file => JSON.parse(fs.readFileSync(path.join(SRV, 'gamevault/data
   });
   await check('Vuelve soiber al mismo aparato: recupera SU colección (sin nada de la otra cuenta)', async () => {
     await salirYEntrar('soiber');
+    await page.getByRole('heading', { name: 'Inicio' }).waitFor({ timeout: 30000 });
+    await page.waitForTimeout(2500);                                        // por si recarga al bajar su colección
     await page.getByRole('heading', { name: 'Inicio' }).waitFor({ timeout: 30000 });
     const n = await page.evaluate(() => window.api.io.counts());
     assert(n.juegos === server('c_soiber.json').data.juegos.length, 'juegos: ' + JSON.stringify(n));

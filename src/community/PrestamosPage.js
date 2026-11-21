@@ -400,7 +400,15 @@ function Peticiones({ reqs, busy, onContestar, onCancelar }) {
 }
 
 // Cuánto tiempo lleva fuera un préstamo; a partir de un mes en ámbar y de tres en rojo
-export function diasDesde(f) { if (!f) return null; const d = Math.floor((Date.now() - new Date(f + 'T12:00:00').getTime()) / 86400000); return d >= 0 ? d : null; }
+// Días enteros entre la fecha (YYYY-MM-DD) y hoy, contando por días de calendario (no por horas)
+export function diasDesde(f) {
+  if (!f) return null;
+  const [y, m, d] = String(f).slice(0, 10).split('-').map(Number);
+  if (!y || !m || !d) return null;
+  const hoy = new Date(); const a = Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()), b = Date.UTC(y, m - 1, d);
+  const n = Math.round((a - b) / 86400000);
+  return n >= 0 ? n : null;
+}
 export function textoTiempo(d) {
   if (d == null) return '';
   if (d < 1) return 'hoy'; if (d === 1) return '1 día'; if (d < 31) return `${d} días`;

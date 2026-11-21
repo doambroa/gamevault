@@ -86,7 +86,12 @@ const hoyISO = (d = 0) => { const f = new Date(); f.setDate(f.getDate() + d); co
       assert(await listas.count() === 4, 'trozos de 50: ' + await listas.count());
       const h = await listas.first().getAttribute('href');
       assert(/watch_videos\?video_ids=([A-Za-z0-9_-]{11},){49}[A-Za-z0-9_-]{11}$/.test(h), h);
-      await page.locator('.pl-hero-acc a', { hasText: 'El vídeo' }).waitFor();
+      const v = page.locator('.pl-hero .pl-video');                   // el vídeo final, destacado con su miniatura
+      await v.getByText('El vídeo de la playlist').waitFor();
+      assert((await v.locator('img').getAttribute('src')).includes('KLF-PIrw5yk'), 'miniatura del vídeo');
+      assert((await v.getAttribute('href')).includes('KLF-PIrw5yk'), 'enlace del vídeo');
+      await v.getByText(/Retro and not so retro grooves for autumn/).waitFor();
+      await page.locator('.pl-intro-box').getByText(/Los 31 días de octubre/).waitFor();
       await page.waitForTimeout(500);
       await shot('otono');
     });

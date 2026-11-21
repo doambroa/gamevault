@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Image, Loader, Search } from 'lucide-react';
 import { Modal, Input, Select, Textarea, Btn, ImgThumbs, CoverPicker } from '../../components/ui/index';
-import { searchGames, rawgToJuego, getGameDetails, getGameScreenshots } from '../../utils/rawg';
+import { searchGames, rawgToJuego, getGameDetails, getGameScreenshots, PLATAFORMA_RAWG } from '../../utils/rawg';
+import { claveConsola } from '../../data/consolas';
 import { parseImgs } from '../../utils/imgSrc';
 
 const GENEROS  = ['Acción','Aventura','RPG','Deportes','Carreras','Plataformas','Shooter','Estrategia','Simulación','Lucha','Puzzle','Terror','MMORPG','Indie','Música','Otro'];
@@ -50,6 +51,21 @@ export default function JuegoForm({open, initial, onClose, onSave, plataformas=[
   }, []);
 
   // ── Debounced AJAX search while typing ───────────────────────────────────
+  // Si ya se ha elegido la consola, RAWG busca solo juegos de esa consola (si no hay ninguno, en todas)
+  const platActual = (lockPlataforma ? plataformas[0] : plataformas.find(p => String(p.id) === String(f.plataformaId))) || null;
+  const rawgPlat = platActual ? PLATAFORMA_RAWG[claveConsola(platActual.nombre)] || null : null;
+  const [sugTodas, setSugTodas] = useState(false);      // true = no había nada en esa consola y se muestra de todas
+  const buscar = useCallback(async (val, plat) => {
+    setSugLoading(true);
+    try {
+      let results = (await searchGames(val, 8, plat)).filter(g => g.background_image);
+      let todas = false;
+      if (plat && !results.length) { results = (await searchGames(val, 8)).filter(g => g.background_image); todas = true; }
+      setSuggestions(results); setSugTodas(todas);
+      setShowSug(true);
+    } catch { setSuggestions([]); }
+    setSugLoading(false);
+  }, []);
   const handleNombreChange = useCallback(e => {
     const val = e.target.value;
     setF(v => ({...v, nombre: val}));
@@ -57,15 +73,13 @@ export default function JuegoForm({open, initial, onClose, onSave, plataformas=[
     clearTimeout(debounceRef.current);
     if (val.trim().length < 2) { setSuggestions([]); return; }
     setSugLoading(true);
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const results = await searchGames(val, 8);
-        setSuggestions(results.filter(g => g.background_image));
-        setShowSug(true);
-      } catch { setSuggestions([]); }
-      setSugLoading(false);
-    }, 400); // 400ms debounce — espera a que el usuario pare de escribir
-  }, []);
+    debounceRef.current = setTimeout(() => buscar(val, rawgPlat), 400); // 400ms debounce — espera a que el usuario pare de escribir
+  }, [buscar, rawgPlat]);
+  // al cambiar de consola con un nombre ya escrito, se vuelve a buscar
+  useEffect(() => {
+    if (!open || f.nombre.trim().length < 2 || !document.activeElement || !sugRef.current?.contains(document.activeElement)) return;
+    buscar(f.nombre, rawgPlat);
+  }, [rawgPlat]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Al seleccionar una sugerencia — rellena todos los campos ─────────────
   const handleSelectSuggestion = useCallback(async game => {
@@ -136,9 +150,11 @@ export default function JuegoForm({open, initial, onClose, onSave, plataformas=[
               {sugLoading && <Loader size={12} className="spin" style={{marginLeft:6,color:'var(--cyan)'}}/>}
               {!sugLoading && f.nombre.length >= 2 &&
                 <span style={{fontSize:10,color:'var(--text-3)',marginLeft:6}}>
-                  Buscando en RAWG mientras escribes…
+                  {rawgPlat ? `Buscando en RAWG solo juegos de ${platActual.nombre}…` : 'Buscando en RAWG mientras escribes…'}
                 </span>
               }
+              {!rawgPlat && !lockPlataforma && !f.plataformaId && f.nombre.length < 2 &&
+                <span className="jf-tip">Elige antes la plataforma y solo te saldrán juegos de esa consola</span>}
             </label>
             <div style={{position:'relative'}}>
               <Search size={14} style={{position:'absolute',left:10,top:'50%',
@@ -158,6 +174,7 @@ export default function JuegoForm({open, initial, onClose, onSave, plataformas=[
             {/* Dropdown de sugerencias */}
             {showSug && suggestions.length > 0 && (
               <div className="sug-dropdown">
+                {sugTodas && <div className="sug-aviso">No hay nada de {platActual?.nombre} con ese nombre en RAWG: te enseño de todas las consolas</div>}
                 {suggestions.map(game => (
                   <div key={game.id} className="sug-item"
                     onMouseDown={e => { e.preventDefault(); handleSelectSuggestion(game); }}>

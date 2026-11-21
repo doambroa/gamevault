@@ -345,9 +345,18 @@ function claimableFor($name) {
   $res = [];
   foreach (pendings() as $id => $p) if (($p['suggest'] ?? null) === $name) {
     $c = readJson(collFile($id), null);
-    $res[] = ['id' => $id, 'display' => $p['display'] ?? $id] + counts($c ?: []);
+    $res[] = ['id' => $id, 'display' => $p['display'] ?? $id] + counts($c ?: []) + resumenPerfil($c);
   }
   return $res;
+}
+// Qué consolas (y cuántos juegos en cada una) y qué títulos hay en un perfil de la tabla: la bienvenida
+// las deja marcadas y no vuelve a ofrecer esos juegos desde Créditos Finales
+function resumenPerfil($c) {
+  $d = $c['data'] ?? $c ?? [];
+  $n = []; foreach (($d['juegos'] ?? []) as $j) $n[$j['plataformaId'] ?? 0] = ($n[$j['plataformaId'] ?? 0] ?? 0) + 1;
+  $cons = []; foreach (($d['plataformas'] ?? []) as $p) $cons[] = ['n' => $p['nombre'] ?? '', 'j' => $n[$p['id']] ?? 0];
+  $tit = []; foreach (($d['juegos'] ?? []) as $j) $tit[] = $j['nombre'] ?? '';
+  return ['consolas' => $cons, 'titulos' => $tit];
 }
 
 // ── Colecciones ────────────────────────────────────────────────────────────────
@@ -394,7 +403,7 @@ function creditosDe($u) {
   foreach (($db['years'] ?? []) as $year => $y) {
     foreach (($y['games'] ?? []) as $g) {
       if (!is_array($g) || empty($g['title'])) continue;
-      $res[] = ['t' => $g['title'], 'y' => (int)$year, 'e' => 'terminado', 'r' => $g['rating'] ?? null, 'h' => $g['hours'] ?? null,
+      $res[] = ['t' => $g['title'], 'y' => (int)$year, 'e' => 'terminado', 'r' => $g['rating'] ?? null, 'h' => $g['hours'] ?? null, 'sid' => $g['sourceId'] ?? null,
         'd' => $g['date'] ?? null, 'x' => !empty($g['replayed']), 'c' => $g['comment'] ?? '', 's' => $g['song']['title'] ?? null,
         // la carátula que tiene en Créditos Finales (sus fotos locales van relativas a /creditos/)
         'i' => !empty($g['image']) ? (preg_match('#^https?://#', $g['image']) ? $g['image'] : baseUrl() . '../creditos/' . ltrim($g['image'], '/')) : null];
@@ -726,7 +735,7 @@ switch ($action) {
     if (!$ok) out(['error' => 'El enlace no es válido'], 403);
     $c = readJson(collFile($id), null);
     out(['id' => $id, 'display' => $p['display'] ?? $id, 'esPara' => ($p['suggest'] ?? null) === $ME,
-      'admin' => isAdmin($ME) && ($p['suggest'] ?? null) !== $ME] + counts($c ?: []));
+      'admin' => isAdmin($ME) && ($p['suggest'] ?? null) !== $ME] + counts($c ?: []) + resumenPerfil($c));
 
   case 'claim':     // POST {id, code}: la colección del perfil pasa a ser mía (se suma a la que tenga)
     $u = requireUser(); $b = body();
@@ -762,6 +771,11 @@ switch ($action) {
     });
     @rename(collFile($id), collFile($id) . '.reclamado-por-' . $u);
     out(['ok' => true, 'rev' => $rev] + counts(['data' => $merged]));
+
+  case 'mis_creditos': // GET → los juegos que tengo en Créditos Finales (para ofrecerlos al crear la colección)
+    $u = requireUser();
+    $l = creditosDe($u);
+    out(['juegos' => array_values(array_filter($l ?: [], function ($g) { return in_array($g['e'], ['terminado', 'jugando'], true); }))]);
 
   /* ---------- retos Switcherino ---------- */
   case 'retos':     // GET → { playlists:[…], porras:[…], admin, alias, gente }
@@ -832,7 +846,9 @@ switch ($action) {
       $p['estacion'] = in_array($b['estacion'] ?? '', ['primavera', 'verano', 'otono', 'invierno', 'otra'], true) ? $b['estacion'] : 'otra';
       $p['intro'] = txt($b['intro'] ?? '', 1000);
       $p['inicio'] = $ini; $p['estado'] = $estado; $p['dias'] = $dias;
-      $p['video'] = txt($b['video'] ?? '', 300); $p['playlist'] = txt($b['playlist'] ?? '', 300);
+      $nv = txt($b['video'] ?? '', 300);
+      if ($nv !== ($p['video'] ?? '')) $p['videoTitulo'] = ($vid = ytId($nv)) ? (ytTitulo($vid)['titulo'] ?? '') : '';
+      $p['video'] = $nv; $p['playlist'] = txt($b['playlist'] ?? '', 300);
       $p['verFuturas'] = !empty($b['verFuturas']);
       // si se quitan días del final, sus temas se quedan guardados por si se vuelven a poner
       return $p;

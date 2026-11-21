@@ -34,6 +34,17 @@ Las bases de datos de versiones anteriores se actualizan solas al abrir la 1.8 (
 
 ---
 
+## Novedades de la 2.4
+
+- **Bienvenida para quien ya tiene juegos apuntados**: si alguien tiene juegos en la tabla de préstamos o en Créditos Finales, la bienvenida se lo dice («¡Oye! Ya tienes juegos apuntados, así que esos se te dan de alta solos») y pasa igualmente por elegir sus consolas:
+  - Las consolas de la tabla salen ya marcadas (con cuántos juegos trae cada una) y sus juegos se suman al terminar.
+  - Los de Créditos Finales salen en un paso aparte para elegir en qué consola tiene cada uno (allí no consta); se propone la consola según dónde salió el juego, y los que no tenga se dejan en «No lo tengo». Los que ya están en la tabla no se repiten.
+  - Vale tanto para el aviso «¿Eres …?» como para el enlace de reclamar abierto en un aparato sin colección.
+- **Switch 2** en las sugerencias de «Nueva plataforma» (ya estaba en la bienvenida). Switch y Switch 2 son consolas distintas, con su catálogo cada una.
+- **Formulario de juego**: si eliges antes la plataforma, la búsqueda en RAWG trae solo juegos de esa consola (si no hay ninguno con ese nombre, enseña los de todas y lo avisa). Los juegos de Switch 2 se buscan en «Nintendo Switch», que es donde los tiene RAWG.
+- **Playlist**: el vídeo final sale destacado en la cabecera con su miniatura y su título, y el texto del reto va en su propio apartado.
+- Préstamos: un préstamo apuntado hoy ya muestra «fuera desde hoy» aunque sea antes del mediodía.
+
 ## Novedades de la 2.3.2
 
 - **Las colecciones nunca se mezclan**: si en un aparato entra otra cuenta (un amigo en tu ordenador o tú en el suyo), se carga la colección de esa cuenta (o vacía) y la anterior no se sube a la nueva. Si la anterior tenía cambios sin subir, se pregunta qué hacer.

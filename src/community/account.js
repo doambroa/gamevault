@@ -503,3 +503,17 @@ export const votarPorra   = (id, cat, nom, para) => call('porra_voto', { method:
 export const ganadorPorra = (id, cat, nom) => call('porra_ganador', { method: 'POST', body: { id, cat, nom } });
 export const borrarReto   = (tipo, id) => call('reto_borrar', { method: 'POST', body: { tipo, id } });
 export const aliasReto    = (alias, user) => call('reto_alias', { method: 'POST', body: { alias, user } });
+
+// ── Bienvenida con juegos ya apuntados (tabla de préstamos y Créditos Finales) ──
+export const misCreditos = () => call('mis_creditos');
+// Enlace de reclamar aceptado en un aparato sin colección: se guarda y lo termina la bienvenida
+const LS_RECLAMAR = 'gv-reclamar-pendiente';
+export const guardarReclamo = info => lsSet(LS_RECLAMAR, info);
+export const reclamoGuardado = () => { const r = lsGet(LS_RECLAMAR, null); return r && state.me && r.para === state.me.user ? r : null; };
+export const olvidarReclamo = () => { try { localStorage.removeItem(LS_RECLAMAR); } catch {} };
+// Suma el perfil de la tabla a la cuenta y baja la colección, sin recargar la página
+export async function reclamarSinRecargar(id, code = '') {
+  const r = await call('claim', { method: 'POST', body: { id, code } });
+  await pull({ reload: false });
+  return r;
+}

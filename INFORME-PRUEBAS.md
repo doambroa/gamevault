@@ -1,5 +1,16 @@
 # GameVault — Informe de pruebas y errores corregidos
 
+## Versión 2.4 (21-11-2026)
+
+Unitarias 46/46 · escritorio 43/43 (2 nuevas) · comunidad 43/43 (dos pasadas; 3 nuevas) · Android 16/16 · iPhone 9/9 · accesorios 8/8 · retos 28/28.
+
+Probado: bienvenida con perfil de la tabla y Créditos Finales (aviso, consolas de la tabla marcadas y fijas, paso de Créditos Finales con «No lo tengo», sin repetir los de la tabla, todo subido a su cuenta), enlace de reclamar con cuenta nueva sin colección → bienvenida → 52 juegos; «Switch 2» en las sugerencias de nueva consola; búsqueda de RAWG filtrada por consola y vuelta a «todas»; vídeo destacado de la playlist.
+
+Errores encontrados y corregidos:
+1. Un préstamo apuntado el mismo día no mostraba el tiempo que lleva fuera si se miraba antes de las 12:00 (se calculaba con horas en vez de días).
+2. «Buscar portada» en el editor de la porra no encontraba nada (leía mal la respuesta de RAWG). Las portadas que venían ya puestas no estaban afectadas.
+3. En la bienvenida, el botón «Ahora no» tapaba el botón principal: ahora va abajo.
+
 ## Versión 2.3.2 (20-11-2026)
 
 Unitarias 46/46 · escritorio 41/41 · comunidad 41/41 (dos pasadas; 5 pruebas nuevas) · Android 16/16 · iPhone 9/9 · accesorios 8/8 · retos 28/28.

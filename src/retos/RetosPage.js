@@ -131,13 +131,18 @@ function PlaylistView({ pl, me, admin, gente, recargar, onEditar, onAlias }) {
         <div className="pl-hero-txt">
           <h2>{pl.titulo}</h2>
           <p>{estadoTxt(pl)}{pl.inicio && <> · {fmtDia(fechaDia(pl.inicio, 1), { day: 'numeric', month: 'short' })} – {fmtDia(fechaDia(pl.inicio, n), { day: 'numeric', month: 'short', year: 'numeric' })}</>}</p>
-          {pl.intro && <p className="pl-intro">{pl.intro}</p>}
           {!borrador && <div className="pl-prog" title={`${pctHoy}% del reto`}><i style={{ width: pctHoy + '%' }}/></div>}
         </div>
+        {/* El vídeo final: el resultado de todo lo de abajo, bien a la vista */}
+        {pl.video && ytId(pl.video) && (
+          <a className="pl-video" href={pl.video} target="_blank" rel="noreferrer" title="Ver el vídeo en YouTube">
+            <span className="pl-video-img"><img src={`https://i.ytimg.com/vi/${ytId(pl.video)}/hqdefault.jpg`} alt=""/><span className="pl-video-play"><Play size={26}/></span></span>
+            <span className="pl-video-txt"><small><Youtube size={12}/> El vídeo de la playlist</small>{pl.videoTitulo && <b>{pl.videoTitulo}</b>}</span>
+          </a>
+        )}
         <div className="pl-hero-acc">
           {listas.map((l, k) => <a key={k} className="btn btn-secondary btn-sm" href={l.url} target="_blank" rel="noreferrer"><ListMusic size={14}/> {listas.length > 1 ? `Escuchar ${l.desde}–${l.hasta}` : `Escuchar todo (${todos.length})`}</a>)}
           {pl.playlist && <a className="btn btn-ghost btn-sm" href={pl.playlist} target="_blank" rel="noreferrer"><Youtube size={14}/> Lista en YouTube</a>}
-          {pl.video && <a className="btn btn-ghost btn-sm" href={pl.video} target="_blank" rel="noreferrer"><Play size={14}/> El vídeo</a>}
           {admin && <>
             <Btn variant="ghost" size="sm" onClick={onEditar}><Pencil size={14}/> Editar</Btn>
             <Btn variant="ghost" size="sm" onClick={doCopiar}>{copiado ? <Check size={14}/> : <Copy size={14}/>} {copiado ? 'Copiado' : 'Copiar como documento'}</Btn>
@@ -145,6 +150,8 @@ function PlaylistView({ pl, me, admin, gente, recargar, onEditar, onAlias }) {
           </>}
         </div>
       </div>
+
+      {pl.intro && <section className="pl-intro-box"><h3>De qué va</h3><p>{pl.intro}</p></section>}
 
       {participantes.length > 0 && (
         <div className="pl-gente">
