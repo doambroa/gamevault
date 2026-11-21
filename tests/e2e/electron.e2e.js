@@ -91,7 +91,9 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
   await check('Plataforma nueva con Unidades = 2 y se ve en el detalle', async () => {
     await page.getByRole('button', { name: 'Consolas', exact: true }).click();
     await page.getByRole('button', { name: /Nueva plataforma/ }).click();
+    await page.locator('.nc-manual').click();                     // no está en la rejilla → a mano
     const modal = page.locator('.modal-box');
+    await modal.getByRole('heading', { name: 'Nueva plataforma' }).waitFor();
     await modal.locator('input').first().fill('PlayStation 2 Slim');
     await uds(modal).fill('2');
     await modal.getByRole('button', { name: 'Crear' }).click();
@@ -178,10 +180,34 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
     await modal.getByRole('button', { name: /Crear juego/ }).click();
     await page.locator('td.td-name', { hasText: 'Mario Kart 8 Deluxe: Booster Course' }).waitFor();
   });
-  await check('Nueva consola: al escribir «Switch 2» la sugiere (y también Switch, aparte)', async () => {
+  await check('Nueva plataforma: la rejilla de la bienvenida con las que ya tengo marcadas; elijo varias y se añaden', async () => {
     await page.getByRole('button', { name: 'Consolas', exact: true }).click();
+    const antes = await page.evaluate(() => window.api.plataformas.getAll().then(l => l.length));
     await page.getByRole('button', { name: /Nueva plataforma/ }).click();
     const modal = page.locator('.modal-box');
+    await modal.getByRole('heading', { name: 'Añadir consolas' }).waitFor();
+    const tarjeta = n => modal.locator('.ob-consola', { has: page.locator('.ob-consola-nombre', { hasText: new RegExp('^' + n + '$') }) });
+    await tarjeta('Switch').locator('.ob-tiene', { hasText: 'Ya la tienes' }).waitFor();
+    await tarjeta('Nintendo 64').locator('.ob-tiene').waitFor();
+    await tarjeta('Switch').click();                                     // las que ya tengo no se pueden volver a elegir
+    assert(!(await tarjeta('Switch').evaluate(e => e.classList.contains('ob-consola-sel'))), 'Switch no debe marcarse');
+    await tarjeta('Switch 2').click();
+    await modal.getByRole('button', { name: 'Sony' }).click();
+    await tarjeta('PlayStation 5').click();
+    await shot('nueva-plataforma-rejilla');
+    await modal.getByRole('button', { name: 'Añadir 2 consolas' }).click();
+    await modal.waitFor({ state: 'detached', timeout: 10000 });
+    const l = await page.evaluate(() => window.api.plataformas.getAll());
+    assert(l.length === antes + 2, 'consolas: ' + l.length);
+    const s2 = l.find(p => p.nombre === 'Switch 2');
+    assert(s2 && JSON.parse(s2.imagenes || '[]')[0] === './consolas/switch-2.png' && s2.marca === 'Nintendo', JSON.stringify(s2));
+    await page.locator('.plat-name', { hasText: /^Switch 2$/ }).waitFor();
+  });
+  await check('Nueva consola a mano («¿No es ninguna de estas?»): el formulario sugiere «Switch 2» (y Switch, aparte)', async () => {
+    await page.getByRole('button', { name: /Nueva plataforma/ }).click();
+    await page.locator('.nc-manual').click();
+    const modal = page.locator('.modal-box');
+    await modal.getByRole('heading', { name: 'Nueva plataforma' }).waitFor();
     await modal.getByPlaceholder('PlayStation 5').fill('switch');
     await modal.locator('.autocomplete-item', { hasText: 'Nintendo Switch 2' }).waitFor({ timeout: 5000 });
     await modal.locator('.autocomplete-item .ac-nombre', { hasText: /^Nintendo Switch$/ }).waitFor();

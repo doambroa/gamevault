@@ -4,6 +4,7 @@ import { Plus, Monitor, Edit2, Trash2, ChevronRight, Gamepad2 } from 'lucide-rea
 import { useNavigate } from 'react-router-dom';
 import { Btn, Badge, PageHeader, EmptyState, ConfirmModal, SkeletonList } from '../../components/ui/index';
 import PlataformaForm from './PlataformaForm';
+import NuevasConsolas from './NuevasConsolas';
 
 const api = window.api;
 const TC = { Sobremesa:'accent', Portátil:'cyan', PC:'gold', Híbrida:'green' };
@@ -19,6 +20,7 @@ export default function PlataformasPage() {
   const [items,   setItems]   = useState([]);
   const [loading, setLoading] = useState(true);
   const [form,    setForm]    = useState(null);
+  const [elegir,  setElegir]  = useState(false);   // «Nueva plataforma» → rejilla de consolas (como la bienvenida)
   const [delId,   setDelId]   = useState(null);
 
   const load = useCallback(async () => {
@@ -44,13 +46,13 @@ export default function PlataformasPage() {
     <div className="page">
       <PageHeader title="Plataformas"
         subtitle={`${items.length} consola${items.length !== 1 ? 's' : ''} · ${items.reduce((a, p) => a + (p.numJuegos || 0), 0)} juegos`}
-        actions={<Btn onClick={() => setForm(EMPTY)}><Plus size={16}/> Nueva plataforma</Btn>}/>
+        actions={<Btn onClick={() => setElegir(true)}><Plus size={16}/> Nueva plataforma</Btn>}/>
 
       {loading ? <SkeletonList n={4} h={110}/> :
        items.length === 0 ? (
         <EmptyState icon={<Monitor size={52}/>} title="Sin plataformas"
           description="Añade tu primera consola."
-          action={<Btn onClick={() => setForm(EMPTY)}><Plus size={16}/> Añadir</Btn>}/>
+          action={<Btn onClick={() => setElegir(true)}><Plus size={16}/> Añadir</Btn>}/>
        ) : Object.entries(grouped).map(([tipo, list]) => (
         <div key={tipo} style={{ marginBottom: 28 }}>
           <p className="section-title">{tipo}</p>
@@ -97,6 +99,9 @@ export default function PlataformasPage() {
        ))
       }
 
+      <NuevasConsolas open={elegir} tengo={items} onClose={() => setElegir(false)}
+        onManual={() => { setElegir(false); setForm(EMPTY); }}
+        onHecho={() => { setElegir(false); load(); }}/>
       <PlataformaForm open={!!form} initial={form} onClose={() => setForm(null)} onSave={save}/>
       <ConfirmModal open={!!delId} onClose={() => setDelId(null)}
         onConfirm={async () => { await api.plataformas.delete(delId); setDelId(null); load(); }}

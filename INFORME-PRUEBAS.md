@@ -1,5 +1,15 @@
 # GameVault — Informe de pruebas y errores corregidos
 
+## Versión 2.4.1 (21-11-2026)
+
+Unitarias 46/46 · escritorio 44/44 (1 nueva) · comunidad 43/43 · Android 16/16 · iPhone 9/9 · accesorios 8/8 · retos 28/28.
+
+Probado: «Nueva plataforma» abre la rejilla; las que ya tienes salen marcadas y no se pueden volver a elegir; se añaden dos de golpe con su imagen; «Añádela a mano» abre el formulario; cabecera de la playlist con el vídeo.
+
+Corregido: la etiqueta «Ya la tienes» de la rejilla quedaba medio tapada por la foto de la consola.
+
+Datos: quitado del servidor el Mario Party Superstars repetido de David que figuraba como prestado a soiber (errata de la tabla); se guardó una copia antes.
+
 ## Versión 2.4 (21-11-2026)
 
 Unitarias 46/46 · escritorio 43/43 (2 nuevas) · comunidad 43/43 (dos pasadas; 3 nuevas) · Android 16/16 · iPhone 9/9 · accesorios 8/8 · retos 28/28.

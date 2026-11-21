@@ -137,7 +137,7 @@ function PlaylistView({ pl, me, admin, gente, recargar, onEditar, onAlias }) {
         {pl.video && ytId(pl.video) && (
           <a className="pl-video" href={pl.video} target="_blank" rel="noreferrer" title="Ver el vídeo en YouTube">
             <span className="pl-video-img"><img src={`https://i.ytimg.com/vi/${ytId(pl.video)}/hqdefault.jpg`} alt=""/><span className="pl-video-play"><Play size={26}/></span></span>
-            <span className="pl-video-txt"><small><Youtube size={12}/> El vídeo de la playlist</small>{pl.videoTitulo && <b>{pl.videoTitulo}</b>}</span>
+            <span className="pl-video-txt"><small><Youtube size={12}/> El vídeo final</small>{pl.videoTitulo && <b>{pl.videoTitulo}</b>}</span>
           </a>
         )}
         <div className="pl-hero-acc">

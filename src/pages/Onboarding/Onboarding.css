@@ -305,7 +305,7 @@
 /* Consolas que ya están en la colección (no se pueden volver a añadir) */
 .ob-consola-tiene { opacity: .45; cursor: default; }
 .ob-consola-tiene:hover { transform: none; }
-.ob-tiene { position: absolute; top: 8px; right: 8px; font-size: 10px; font-weight: 600; color: var(--cyan);
+.ob-tiene { z-index: 3; position: absolute; top: 8px; right: 8px; font-size: 10px; font-weight: 600; color: var(--cyan);
   background: rgba(34,211,238,.12); border: 1px solid rgba(34,211,238,.3); border-radius: 10px; padding: 1px 7px; }
 
 /* Móvil: el botón de continuar pasa debajo del título, a todo el ancho */
@@ -358,3 +358,15 @@
   .ob-cf select{max-width:none;flex:1 1 100%}
   .ob-cf-aviso{margin:0 12px 12px}
 }
+
+/* Ventana «Añadir consolas» (misma rejilla que la bienvenida) */
+.nc{display:flex;flex-direction:column;gap:12px;min-height:0}
+.nc-sub{margin:0;color:var(--text-1);font-size:13px}
+.nc-marcas{padding:0!important;margin:0!important}
+.nc-grid{padding:2px 2px 8px!important;max-height:58vh;overflow:auto;grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+.nc-pie{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--border)}
+.nc-manual{display:inline-flex;align-items:center;gap:7px;background:none;border:1px dashed var(--border);border-radius:var(--r);padding:8px 12px;color:var(--text-1);font-size:13px;cursor:pointer}
+.nc-manual b{color:var(--accent)}
+.nc-manual:hover{border-color:var(--text-2);color:var(--text-0)}
+.nc-busy{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--cyan)}
+@media (max-width: 760px){ .nc-grid{grid-template-columns:repeat(2,1fr);max-height:52vh} .nc-pie > span[style]{display:none} }

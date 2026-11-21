@@ -87,7 +87,7 @@ const hoyISO = (d = 0) => { const f = new Date(); f.setDate(f.getDate() + d); co
       const h = await listas.first().getAttribute('href');
       assert(/watch_videos\?video_ids=([A-Za-z0-9_-]{11},){49}[A-Za-z0-9_-]{11}$/.test(h), h);
       const v = page.locator('.pl-hero .pl-video');                   // el vídeo final, destacado con su miniatura
-      await v.getByText('El vídeo de la playlist').waitFor();
+      await v.getByText('El vídeo final').waitFor();
       assert((await v.locator('img').getAttribute('src')).includes('KLF-PIrw5yk'), 'miniatura del vídeo');
       assert((await v.getAttribute('href')).includes('KLF-PIrw5yk'), 'enlace del vídeo');
       await v.getByText(/Retro and not so retro grooves for autumn/).waitFor();

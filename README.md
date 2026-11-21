@@ -34,6 +34,11 @@ Las bases de datos de versiones anteriores se actualizan solas al abrir la 1.8 (
 
 ---
 
+## Novedades de la 2.4.1
+
+- **Nueva plataforma**: abre la misma rejilla de consolas que la bienvenida, con las que ya tienes marcadas como «Ya la tienes». Eliges una o varias y se añaden con su imagen y datos. Si no está, «¿No es ninguna de estas? Añádela a mano» abre el formulario de siempre (que sigue siendo el de editar).
+- **Playlist**: el vídeo final va en una tarjeta horizontal más pequeña, centrada en la cabecera; el título y los botones quedan centrados en vertical.
+
 ## Novedades de la 2.4
 
 - **Bienvenida para quien ya tiene juegos apuntados**: si alguien tiene juegos en la tabla de préstamos o en Créditos Finales, la bienvenida se lo dice («¡Oye! Ya tienes juegos apuntados, así que esos se te dan de alta solos») y pasa igualmente por elegir sus consolas:
