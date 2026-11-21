@@ -191,6 +191,13 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
     await tarjeta('Nintendo 64').locator('.ob-tiene').waitFor();
     await tarjeta('Switch').click();                                     // las que ya tengo no se pueden volver a elegir
     assert(!(await tarjeta('Switch').evaluate(e => e.classList.contains('ob-consola-sel'))), 'Switch no debe marcarse');
+    // al pasar el ratón por una que no tengo, las tarjetas no se aplastan (pasaba con la rejilla dentro de la ventana)
+    const alto = () => tarjeta('Switch 2').evaluate(e => e.getBoundingClientRect().height);
+    const h0 = await alto();
+    await tarjeta('Color TV-Game').hover(); await page.waitForTimeout(400);
+    await tarjeta('Virtual Boy').hover(); await page.waitForTimeout(400);
+    const h1 = await alto();
+    assert(h0 > 150 && Math.abs(h1 - h0) < 2, `alto de la tarjeta: ${h0} → ${h1}`);
     await tarjeta('Switch 2').click();
     await modal.getByRole('button', { name: 'Sony' }).click();
     await tarjeta('PlayStation 5').click();

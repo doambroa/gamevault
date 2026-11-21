@@ -34,6 +34,10 @@ Las bases de datos de versiones anteriores se actualizan solas al abrir la 1.8 (
 
 ---
 
+## Novedades de la 2.4.2
+
+- «Añadir consolas»: las tarjetas ya no se aplastan al pasar el ratón, y la etiqueta «Ya la tienes» se lee bien sobre la foto.
+
 ## Novedades de la 2.4.1
 
 - **Nueva plataforma**: abre la misma rejilla de consolas que la bienvenida, con las que ya tienes marcadas como «Ya la tienes». Eliges una o varias y se añaden con su imagen y datos. Si no está, «¿No es ninguna de estas? Añádela a mano» abre el formulario de siempre (que sigue siendo el de editar).

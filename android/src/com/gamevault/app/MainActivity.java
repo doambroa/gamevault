@@ -264,7 +264,7 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
-        public String version() { return "2.4.1"; }
+        public String version() { return "2.4.2"; }
 
         // Avisos de GameVault (te piden un juego, te recuerdan una devolución) como notificación de Android
         @JavascriptInterface

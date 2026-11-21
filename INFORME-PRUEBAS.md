@@ -1,5 +1,11 @@
 # GameVault — Informe de pruebas y errores corregidos
 
+## Versión 2.4.2 (21-11-2026)
+
+Escritorio 44/44 · comunidad 43/43 · Android 16/16 · iPhone 9/9.
+
+Corregido: en la ventana «Añadir consolas», al pasar el ratón por una tarjeta todas las filas se aplastaban (la rejilla encogía las filas para caber en la caja en vez de desplazarse). La prueba de esa ventana ahora mide el alto de las tarjetas antes y después de pasar el ratón: sin el arreglo falla (44 px) y con él pasa.
+
 ## Versión 2.4.1 (21-11-2026)
 
 Unitarias 46/46 · escritorio 44/44 (1 nueva) · comunidad 43/43 · Android 16/16 · iPhone 9/9 · accesorios 8/8 · retos 28/28.
