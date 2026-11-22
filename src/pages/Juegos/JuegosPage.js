@@ -397,7 +397,7 @@ export default function JuegosPage() {
                   <DuracionTh sortKey={sortKey} sortDir={sortDir} setSort={setSort}/>
                   <SortTh label="Prestado"       field="prestadoA"        {...thP}/>
                   <SortTh label="Comentarios"    field="comentarios"      {...thP}/>
-                  <th></th>
+                  <th className="td-acc" aria-label="Acciones"></th>
                 </tr></thead>
                 <tbody>
                   {items.map(j => {
@@ -474,12 +474,12 @@ export default function JuegosPage() {
                                 title={j.comentarios}>{comentarioCorto}</span>
                             : <span style={{color:'var(--text-3)'}}>—</span>}
                         </td>
-                        <td onClick={e=>e.stopPropagation()}>
+                        <td className="td-acc" onClick={e=>e.stopPropagation()}>
                           <div style={{display:'flex',gap:4,justifyContent:'flex-end'}}>
-                            <button className="icon-btn" onClick={()=>{setEditItem(j);setShowForm(true);}}>
+                            <button className="icon-btn" title="Editar" aria-label={'Editar ' + j.nombre} onClick={()=>{setEditItem(j);setShowForm(true);}}>
                               <Edit2 size={13}/>
                             </button>
-                            <button className="icon-btn icon-btn-danger" onClick={()=>setDelId(j.id)}>
+                            <button className="icon-btn icon-btn-danger" title="Eliminar" aria-label={'Eliminar ' + j.nombre} onClick={()=>setDelId(j.id)}>
                               <Trash2 size={13}/>
                             </button>
                           </div>
@@ -524,6 +524,7 @@ export default function JuegosPage() {
       <JuegoPanel juego={panelJuego} plataforma={panelPlat} open={panelOpen}
         onClose={()=>setPanelOpen(false)}
         onEdit={()=>{setEditItem(panelJuego);setShowForm(true);setPanelOpen(false);}}
+        onDelete={()=>{setDelId(panelJuego.id);setPanelOpen(false);}}
         onFilterBy={handleFilterBy}
         onRefresh={() => load({ silent: true })}/>
 
@@ -531,7 +532,7 @@ export default function JuegosPage() {
         onClose={()=>{setShowForm(false);setEditItem(null);}} onSave={save}/>
       <ConfirmModal open={!!delId} onClose={()=>setDelId(null)}
         onConfirm={async()=>{await api.juegos.delete(delId);setDelId(null);load();}}
-        title="Eliminar juego" message="¿Seguro que quieres eliminar este juego?"/>
+        title="Eliminar juego" message={(() => { const j = juegos.find(x => x.id === delId); return j ? `¿Seguro que quieres eliminar «${j.nombre}» de tu colección?` : '¿Seguro que quieres eliminar este juego?'; })()}/>
 
       <ImportDuracionesModal open={durModal} onClose={() => setDurModal(false)}
         onDone={() => load({ silent: true })}/>

@@ -68,11 +68,11 @@ export default function PlataformasPage() {
                         </div>
                       : <div className="plat-icon"><Monitor size={18}/></div>}
                     <div className="plat-actions">
-                      <button className="icon-btn" onClick={e => {
+                      <button className="icon-btn" title="Editar consola" onClick={e => {
                         e.stopPropagation();
                         setForm({...p, imagenes: typeof p.imagenes==='string' ? JSON.parse(p.imagenes||'[]') : (p.imagenes||[])});
                       }}><Edit2 size={13}/></button>
-                      <button className="icon-btn icon-btn-danger" onClick={e => {
+                      <button className="icon-btn icon-btn-danger" title="Eliminar consola" onClick={e => {
                         e.stopPropagation(); setDelId(p.id);
                       }}><Trash2 size={13}/></button>
                     </div>

@@ -34,6 +34,16 @@ Las bases de datos de versiones anteriores se actualizan solas al abrir la 1.8 (
 
 ---
 
+## Novedades de la 2.4.3
+
+- **Borrar juegos y consolas, a la vista**:
+  - La ficha del juego (la que se abre al pulsarlo) tiene «Eliminar» junto a «Editar».
+  - En la tabla de Juegos, la columna de editar/borrar queda fija a la derecha (antes estaba al final y había que desplazarse para verla).
+  - En pantallas táctiles, los iconos de editar/borrar de las tarjetas de juegos y consolas se ven siempre (antes solo salían al pasar el ratón).
+  - El aviso de borrar dice qué juego vas a eliminar.
+- **Formato Físico / Digital** en el formulario del juego, a la vista. Antes «Digital» estaba escondido como una opción de «Estado». Los juegos que ya tenías como digitales siguen igual; en digital no se pide estado (nuevo, usado…).
+- La casilla «No tiene final» de la ficha queda alineada con el resto.
+
 ## Novedades de la 2.4.2
 
 - «Añadir consolas»: las tarjetas ya no se aplastan al pasar el ratón, y la etiqueta «Ya la tienes» se lee bien sobre la foto.

@@ -1,5 +1,13 @@
 # GameVault — Informe de pruebas y errores corregidos
 
+## Versión 2.4.3 (22-11-2026)
+
+Unitarias 46/46 · escritorio 44/44 · comunidad 43/43 · **borrar 6/6 (prueba nueva, web con cuenta)** · retos 28/28 · Android 16/16 · iPhone 9/9 · accesorios 8/8.
+
+Prueba nueva (borrar): añadir una consola y borrarla desde su ficha; juego nuevo marcado como Digital con el selector de formato; borrar desde la tabla sin desplazarse (el botón tiene que estar dentro de la pantalla); borrar desde la ficha del juego; borrar una consola con juegos desde su tarjeta; todo se sube al servidor y al recargar no vuelve.
+
+Problemas encontrados: borrar funcionaba, pero los botones no se veían: en la tabla quedaban fuera de la pantalla por la derecha, en las tarjetas solo salían al pasar el ratón (en móvil, nunca) y en la ficha del juego no había. «Digital» solo se podía elegir dentro de «Estado».
+
 ## Versión 2.4.2 (21-11-2026)
 
 Escritorio 44/44 · comunidad 43/43 · Android 16/16 · iPhone 9/9.

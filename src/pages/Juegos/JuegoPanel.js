@@ -1,7 +1,7 @@
 import HistorialPrestamos from '../../components/HistorialPrestamos';
 import React, { useState, useEffect, useRef } from 'react';
 import { imgSrc, parseImgs, thumb } from '../../utils/imgSrc';
-import { X, Edit2, Monitor, Calendar, Euro, Users, Globe, Tag, Info, ChevronLeft, ChevronRight, BookOpen, RefreshCw, Copy } from 'lucide-react';
+import { X, Edit2, Trash2, Monitor, Calendar, Euro, Users, Globe, Tag, Info, ChevronLeft, ChevronRight, BookOpen, RefreshCw, Copy } from 'lucide-react';
 import { Badge } from '../../components/ui/index';
 import VentasSection from './VentasSection';
 import { PrestarModal } from '../../community/ui';
@@ -12,7 +12,7 @@ const api = window.api;
 const EC = { Nuevo:'green', Usado:'gold', Digital:'cyan', Dañado:'accent' };
 const TC = { Sobremesa:'accent', Portátil:'cyan', PC:'gold', Híbrida:'green' };
 
-export default function JuegoPanel({ juego, plataforma, open, onClose, onEdit, onFilterBy, onRefresh }) {
+export default function JuegoPanel({ juego, plataforma, open, onClose, onEdit, onDelete, onFilterBy, onRefresh }) {
   const [imgIdx, setImgIdx] = useState(0);
   const [hltbLoading, setHltbLoading] = useState(false);
   const [hltbError,   setHltbError]   = useState('');
@@ -100,6 +100,9 @@ export default function JuegoPanel({ juego, plataforma, open, onClose, onEdit, o
             <button className="jp-action-btn" onClick={onEdit} title="Editar">
               <Edit2 size={15} /> Editar
             </button>
+            {onDelete && <button className="jp-action-btn jp-action-del" onClick={onDelete} title="Eliminar este juego de tu colección">
+              <Trash2 size={15}/> Eliminar
+            </button>}
           </div>
         </div>
 

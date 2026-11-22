@@ -1,6 +1,6 @@
 /* GameVault · service worker (versión web / iPhone): la app abre aunque no haya conexión.
    Sólo guarda en caché los ficheros de la propia app; los datos están en IndexedDB. */
-const CACHE = 'gamevault-v2.4.2';
+const CACHE = 'gamevault-v2.4.3';
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./', './index.html', './sql-wasm.js', './sql-wasm.wasm', './manifest.webmanifest', './icon-192.png'])).then(() => self.skipWaiting()));
 });

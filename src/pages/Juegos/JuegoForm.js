@@ -211,11 +211,26 @@ export default function JuegoForm({open, initial, onClose, onSave, plataformas=[
               {MODOS.map(m => <option key={m}>{m}</option>)}
             </Select>
             <Input label="Nº jugadores" type="number" min="1" value={f.numeroDeJugadores} onChange={s('numeroDeJugadores')} placeholder="1"/>
-            <Select label="Estado" value={f.estado} onChange={s('estado')}>
-              <option value="">--</option>
-              {ESTADOS.map(e => <option key={e}>{e}</option>)}
-            </Select>
+            {/* «Digital» se guarda en el estado (como siempre); aquí se elige a la vista: Físico o Digital */}
+            <div className="field">
+              <span className="field-label">Formato</span>
+              <div className="seg jf-formato" role="radiogroup" aria-label="Formato">
+                <button type="button" role="radio" aria-checked={f.estado !== 'Digital'} className={'seg-btn' + (f.estado !== 'Digital' ? ' active' : '')}
+                  onClick={() => setF(v => ({ ...v, estado: v.estado === 'Digital' ? '' : v.estado }))}>Físico</button>
+                <button type="button" role="radio" aria-checked={f.estado === 'Digital'} className={'seg-btn' + (f.estado === 'Digital' ? ' active' : '')}
+                  onClick={() => setF(v => ({ ...v, estado: 'Digital' }))}>Digital</button>
+              </div>
+            </div>
           </div>
+
+          {f.estado !== 'Digital' && (
+            <div className="grid-3">
+              <Select label="Estado" value={f.estado} onChange={s('estado')}>
+                <option value="">--</option>
+                {ESTADOS.filter(e => e !== 'Digital').map(e => <option key={e}>{e}</option>)}
+              </Select>
+            </div>
+          )}
 
           <div className="grid-3">
             <Select label="Región" value={f.region} onChange={s('region')}>

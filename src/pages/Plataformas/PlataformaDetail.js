@@ -224,10 +224,10 @@ export default function PlataformaDetail() {
                     </td>
                     <td onClick={e=>e.stopPropagation()}>
                       <div style={{display:'flex',gap:4,justifyContent:'flex-end'}}>
-                        <button className="icon-btn" onClick={()=>{setEditJuego(j);setShowJuego(true);}}>
+                        <button className="icon-btn" title="Editar" onClick={()=>{setEditJuego(j);setShowJuego(true);}}>
                           <Edit2 size={13}/>
                         </button>
-                        <button className="icon-btn icon-btn-danger" onClick={()=>setDelJuego(j.id)}>
+                        <button className="icon-btn icon-btn-danger" title="Eliminar" onClick={()=>setDelJuego(j.id)}>
                           <Trash2 size={13}/>
                         </button>
                       </div>
@@ -249,6 +249,7 @@ export default function PlataformaDetail() {
         open={panelOpen}
         onClose={() => setPanelOpen(false)}
         onEdit={() => { setEditJuego(panelJuego); setShowJuego(true); setPanelOpen(false); }}
+        onDelete={() => { setDelJuego(panelJuego.id); setPanelOpen(false); }}
         onFilterBy={(field, value) => handleCellFilter(field, value)}
         onRefresh={load}
       />
